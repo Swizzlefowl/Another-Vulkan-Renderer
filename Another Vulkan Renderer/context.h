@@ -1,7 +1,8 @@
 #pragma once
 #include <string>
-#include "GLFW/glfw3.h"
+#include <GLFW/glfw3.h>
 #include <vulkan/vulkan.hpp>
+
 class Context{
 public:
     class Window {
@@ -23,8 +24,9 @@ public:
     void initVulkanCtx();
 
 private:
-    vk::Instance instance{};
-
+    vk::Instance instance{nullptr};
+    // @level level refers to instance or devicce level extension
+    bool checkForRequiredExtension(const std::string& name, const std::string& level) const;
     void createVkInstance();
 };
 

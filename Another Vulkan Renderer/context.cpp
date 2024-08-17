@@ -40,6 +40,7 @@ Context::Context(){}
 
 void Context::createWindow(size_t height, size_t width, const std::string& title){
     window = Window{ height, width, title };
+    return;
 }
 
 GLFWwindow* Context::getWindow() const{
@@ -48,9 +49,35 @@ GLFWwindow* Context::getWindow() const{
 
 void Context::initVulkanCtx(){
     createVkInstance();
+    return;
+}
+
+bool Context::checkForRequiredExtension(const std::string& name, const std::string& level) const {
+    if (level == "instance") {
+        bool found{ false };
+        const auto supportedExtensions = vk::enumerateInstanceExtensionProperties();
+        for (const auto& exten : supportedExtensions) {
+            if (exten.extensionName == name)
+                found = true;
+        }
+        return found;
+    }
+    /*else if (level == "device") {
+        bool found{ false };
+        const auto supportedExtensions = //TODO;
+        for (const auto& exten : supportedExtensions) {
+            if (exten.extensionName == name)
+                found = true;
+        }
+        return found;
+    }*/
+    else
+        return false;
 }
 
 void Context::createVkInstance(){
+    if (!checkForRequiredExtension(VK_KHR_SURFACE_EXTENSION_NAME, "instance"))
+        throw std::runtime_error("required extension not supported");
     vk::ApplicationInfo appInfo{};
     appInfo.pApplicationName = "another triangle";
     appInfo.applicationVersion = 1;
@@ -68,18 +95,15 @@ void Context::createVkInstance(){
         for (size_t index{}; index < extenCount; index++) {
             extensions.emplace_back(requiredexten[index]);
         }
-        if (std::find(extensions.begin(), extensions.end(), VK_KHR_SURFACE_EXTENSION_NAME) != extensions.end()) {
-            fmt::println("platform does not support vk surface");
-        }
-
         return extensions;
         }();
 
     createInfo.enabledExtensionCount = static_cast<uint32_t>(enabledExtensions.size());
     createInfo.ppEnabledExtensionNames = enabledExtensions.data();
 
-    if (vk::createInstance(&createInfo, nullptr, &instance) != vk::Result::eSuccess)
-        throw std::runtime_error("failed to create instance!");
+    //if (vk::createInstance(&createInfo, nullptr, &instance) != vk::Result::eSuccess)
+        //throw std::runtime_error("failed to create instance!");
     fmt::println("created vulkan instance");
+    return;
 }
 
