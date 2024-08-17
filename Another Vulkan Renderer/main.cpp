@@ -1,6 +1,7 @@
 #include <GLFW/glfw3.h>
 #include "context.h"
 #include <iostream>
+
 int main() {
     try {
         Context ctx{};

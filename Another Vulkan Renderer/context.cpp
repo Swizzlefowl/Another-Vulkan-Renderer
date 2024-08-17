@@ -101,9 +101,13 @@ void Context::createVkInstance(){
     createInfo.enabledExtensionCount = static_cast<uint32_t>(enabledExtensions.size());
     createInfo.ppEnabledExtensionNames = enabledExtensions.data();
 
-    //if (vk::createInstance(&createInfo, nullptr, &instance) != vk::Result::eSuccess)
-        //throw std::runtime_error("failed to create instance!");
+    if (vk::createInstance(&createInfo, nullptr, &instance) != vk::Result::eSuccess)
+        throw std::runtime_error("failed to create instance!");
     fmt::println("created vulkan instance");
+    deleteQueue.enqueue([&]() {
+        instance.destroy();
+        fmt::println("instance destroyed");
+        });
     return;
 }
 
