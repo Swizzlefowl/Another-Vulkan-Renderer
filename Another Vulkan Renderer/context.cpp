@@ -1,5 +1,6 @@
 #include "context.h"
 #include <vector>
+#include <iostream>
 #include <algorithm>
 #include <fmt/core.h>
 namespace avr {
@@ -51,6 +52,7 @@ namespace avr {
     void Context::initVulkanCtx() {
         createVkInstance();
         createSurface();
+        createLogicalDevice();
         return;
     }
 
@@ -131,10 +133,12 @@ namespace avr {
         }
         vk::PhysicalDeviceProperties deviceProperties{ dev.getProperties() };
         //vk::PhysicalDeviceFeatures deviceFeatures{ dev.getFeatures() }; might use in the future
-        if (deviceProperties.deviceType == vk::PhysicalDeviceType::eDiscreteGpu)
+        if (deviceProperties.deviceType == vk::PhysicalDeviceType::eDiscreteGpu) {
+            std::cout << deviceProperties.deviceName << std::endl;
             return true;
-
-        return true;
+        }
+        
+        return false;
     }
     vk::PhysicalDevice Context::getPdevice(){
         const auto devices{ instance.enumeratePhysicalDevices() };
@@ -144,11 +148,106 @@ namespace avr {
         }
         return nullptr;
     }
+    std::pair<uint32_t, QueueTypes> Context::getQueueIndex(const vk::PhysicalDevice& dev, QueueTypes type){
+        auto queueProp{ dev.getQueueFamilyProperties2() };
+        uint32_t indice{};
+        std::pair<uint32_t, QueueTypes> queueIndex{0, QueueTypes::Invalid};
+
+        switch (type){
+        case avr::QueueTypes::Graphics: {
+            for (const auto& queue : queueProp) {
+                if (queue.queueFamilyProperties.queueFlags & vk::QueueFlagBits::eGraphics) {
+                    queueIndex.first = indice;
+                    queueIndex.second = QueueTypes::Graphics;
+                    break;
+                }
+                indice++;
+            }
+            
+            if (!dev.getSurfaceSupportKHR(indice, surface))
+                fmt::println("queue does not support presenting to surface");
+        }
+            break;
+        case avr::QueueTypes::Compute: {
+            for (const auto& queue : queueProp) {
+                if (queue.queueFamilyProperties.queueFlags & vk::QueueFlagBits::eCompute) {
+                    if (queue.queueFamilyProperties.queueFlags & vk::QueueFlagBits::eGraphics) {
+                        indice++;
+                        continue;
+                    }
+                    queueIndex.first = indice;
+                    queueIndex.second = QueueTypes::Compute;
+                    break;
+                }
+            }
+        }
+            break;
+        case avr::QueueTypes::Transfer: {
+            for (const auto& queue : queueProp) {
+                if (queue.queueFamilyProperties.queueFlags & vk::QueueFlagBits::eTransfer) {
+                    if (queue.queueFamilyProperties.queueFlags & vk::QueueFlagBits::eGraphics
+                        || queue.queueFamilyProperties.queueFlags & vk::QueueFlagBits::eCompute) {
+                        indice++;
+                        continue;
+                    }
+                    queueIndex.first = indice;
+                    queueIndex.second = QueueTypes::Transfer;
+                    break;
+                }
+            }
+        }
+            break;
+        case avr::QueueTypes::Invalid:
+            break;
+        default:
+            break;
+        }
+        if (queueIndex.second == QueueTypes::Invalid) {
+            queueIndex.first = std::numeric_limits<uint32_t>::max();
+        }
+        return queueIndex;
+    }
+
     void Context::createLogicalDevice(){
         physicalDevice = getPdevice();
         if (!physicalDevice)
             throw std::runtime_error("failed to find any suitable device");
 
+        const auto queueIndex{ getQueueIndex(physicalDevice, QueueTypes::Graphics) };
+        if (queueIndex.second == QueueTypes::Invalid)
+            throw std::runtime_error("no suitable queue family");
+
+         float queuePriority = 1.0f;
+         vk::DeviceQueueCreateInfo queueCreateInfo{};
+         queueCreateInfo.queueFamilyIndex = queueIndex.first;
+         queueCreateInfo.queueCount = 1;
+         queueCreateInfo.pQueuePriorities = &queuePriority;
+
+         vk::PhysicalDeviceFeatures2 features2{};
+         vk::PhysicalDeviceVulkan12Features feature12{};
+         vk::PhysicalDeviceVulkan13Features feature13{};
+         feature12.bufferDeviceAddress = true;
+         feature12.descriptorIndexing = true;
+         feature13.dynamicRendering = true;
+         features2.features.samplerAnisotropy = true;
+         features2.pNext = &feature12;
+         features2.pNext = &feature13;
+
+         vk::DeviceCreateInfo createInfo{};
+         createInfo.pNext = &features2;
+         createInfo.queueCreateInfoCount = 1;
+         createInfo.pQueueCreateInfos = &queueCreateInfo;
+         std::vector<const char*> deviceExtensions{ VK_KHR_SWAPCHAIN_EXTENSION_NAME };
+         createInfo.enabledExtensionCount = static_cast<uint32_t>(deviceExtensions.size());
+         createInfo.ppEnabledExtensionNames = deviceExtensions.data();
+         if (physicalDevice.createDevice(&createInfo, nullptr, &device) != vk::Result::eSuccess)
+             throw std::runtime_error("failed to create device");
+         queue = device.getQueue(queueIndex.first, 0);
+
+         deleteQueue.enqueue([&]() {
+             device.destroy();
+             fmt::println("destroyed device");
+             });
     }
 }
 

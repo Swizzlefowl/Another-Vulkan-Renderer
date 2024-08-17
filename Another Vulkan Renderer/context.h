@@ -8,6 +8,12 @@ namespace avr {
         Instance,
         Device
     };
+    enum class QueueTypes {
+        Graphics,
+        Compute,
+        Transfer,
+        Invalid
+    };
     class Context {
     public:
         class Window {
@@ -32,6 +38,7 @@ namespace avr {
         vk::SurfaceKHR surface{};
         vk::PhysicalDevice physicalDevice{};
         vk::Device device{};
+        vk::Queue queue{};
         DeletionQueue deleteQueue{};
         // @level level refers to instance or devicce level extension
         bool checkForRequiredExtension(const std::string& name, Levels level, vk::PhysicalDevice device = nullptr) const;
@@ -39,7 +46,9 @@ namespace avr {
         void createSurface();
         bool isDeviceSuitable(const vk::PhysicalDevice& dev);
         vk::PhysicalDevice getPdevice();
+        std::pair<uint32_t, QueueTypes> getQueueIndex(const vk::PhysicalDevice& dev,QueueTypes type);
         void createLogicalDevice();
+        
     };
 }
 
