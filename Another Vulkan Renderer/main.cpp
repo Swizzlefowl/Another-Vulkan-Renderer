@@ -1,10 +1,9 @@
-#include <GLFW/glfw3.h>
 #include "context.h"
 #include <iostream>
 
 int main() {
     try {
-        Context ctx{};
+        avr::Context ctx{};
         ctx.createWindow(720, 680, "another triangle");
         ctx.initVulkanCtx();
         while (!glfwWindowShouldClose(ctx.getWindow())) {

@@ -1,33 +1,45 @@
 #pragma once
 #include <string>
-#include <GLFW/glfw3.h>
 #include <vulkan/vulkan.hpp>
+#include <GLFW/glfw3.h>
 #include "deletionQueue.h"
-class Context{
-public:
-    class Window {
-    public:
-        size_t height{};
-        size_t width{};
-        GLFWwindow* window{ nullptr };
-        Window();
-        Window(size_t height, size_t width, const std::string& title);
-        Window(Window&& win);
-        Window& operator=(Window&& win);
-        ~Window();
+namespace avr {
+    enum class Levels {
+        Instance,
+        Device
     };
-    Context();
-    void createWindow(size_t height, size_t width, const std::string& title);
-    GLFWwindow* getWindow() const;
-    Window window{};
+    class Context {
+    public:
+        class Window {
+        public:
+            size_t height{};
+            size_t width{};
+            GLFWwindow* window{ nullptr };
+            Window();
+            Window(size_t height, size_t width, const std::string& title);
+            Window(Window&& win);
+            Window& operator=(Window&& win);
+            ~Window();
+        };
+        Context();
+        void createWindow(size_t height, size_t width, const std::string& title);
+        GLFWwindow* getWindow() const;
+        Window window{};
 
-    void initVulkanCtx();
-
-private:
-    vk::Instance instance{};
-    DeletionQueue deleteQueue{};
-    // @level level refers to instance or devicce level extension
-    bool checkForRequiredExtension(const std::string& name, const std::string& level) const;
-    void createVkInstance();
-};
+        void initVulkanCtx();
+    private:
+        vk::Instance instance{};
+        vk::SurfaceKHR surface{};
+        vk::PhysicalDevice physicalDevice{};
+        vk::Device device{};
+        DeletionQueue deleteQueue{};
+        // @level level refers to instance or devicce level extension
+        bool checkForRequiredExtension(const std::string& name, Levels level, vk::PhysicalDevice device = nullptr) const;
+        void createVkInstance();
+        void createSurface();
+        bool isDeviceSuitable(const vk::PhysicalDevice& dev);
+        vk::PhysicalDevice getPdevice();
+        void createLogicalDevice();
+    };
+}
 
