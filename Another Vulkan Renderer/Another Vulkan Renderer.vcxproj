@@ -145,6 +145,7 @@
   <ItemGroup>
     <ClCompile Include="context.cpp" />
     <ClCompile Include="deletionQueue.cpp" />
+    <ClCompile Include="Image.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="presentEngine.cpp" />
     <ClCompile Include="Renderer.cpp" />
@@ -152,6 +153,7 @@
   <ItemGroup>
     <ClInclude Include="context.h" />
     <ClInclude Include="deletionQueue.h" />
+    <ClInclude Include="Image.hpp" />
     <ClInclude Include="presentEngine.hpp" />
     <ClInclude Include="Renderer.hpp" />
   </ItemGroup>

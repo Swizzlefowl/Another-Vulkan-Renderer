@@ -4,6 +4,7 @@ void avr::Renderer::init(){
     ctx.createWindow(720, 640, "default name");
     ctx.initVulkanCtx();
     pEngine.createSwapchain();
+    pEngine.createSwapchainImageViews();
 }
 
 void avr::Renderer::init(size_t height, size_t width, const std::string& title){

@@ -1,5 +1,6 @@
 #include "presentEngine.hpp"
 #include <fmt/color.h>
+#include "Image.hpp"
 avr::PresentEngine::PresentEngine(Context& other) : ctx{other} {
 }
 
@@ -43,13 +44,34 @@ void avr::PresentEngine::createSwapchain(){
     catch (vk::Error& err) {
         throw std::runtime_error("failed to create swap chain!");
     }
+    swapChainImagesFormat = surfaceFormat.format;
+    swapChainExtent = extent;
     fmt::println("created swapchain");
+    return;
+}
+
+void avr::PresentEngine::createSwapchainImageViews(){
+    swapchainImages = ctx.device.getSwapchainImagesKHR(swapchain);
+    swapchainImageViews.resize(swapchainImages.size());
+
+    size_t i{ 0 };
+    for (auto& imageView : swapchainImageViews) {
+        vk::ImageSubresourceRange imageSubResource{ vk::ImageAspectFlagBits::eColor,
+         0, 1, 0, 1 };
+        imageView = avr::Image::createImageView(ctx, swapchainImages[i], swapChainImagesFormat, imageSubResource);
+        i++;
+    }
+    fmt::println("created swpachain image views");
     return;
 }
 
 void avr::PresentEngine::cleanupSwapchain(){
     ctx.device.destroySwapchainKHR(swapchain);
     fmt::println("swapchain destroyed");
+    for (auto& view : swapchainImageViews) {
+        ctx.device.destroyImageView(view);
+    }
+    fmt::println("swapchain image views destroyed");
 }
 
 avr::PresentEngine::SwapChainCapablities avr::PresentEngine::getSwapChainCapabilities(){
@@ -68,7 +90,7 @@ vk::SurfaceFormatKHR avr::PresentEngine::chooseSwapSurfaceFormat(const std::vect
 
 vk::PresentModeKHR avr::PresentEngine::chooseSwapPresentMode(const std::vector<vk::PresentModeKHR> availablePresentModes){
     for (const auto& presentMode : availablePresentModes)
-        if (presentMode == vk::PresentModeKHR::eFifoRelaxed)
+        if (presentMode == vk::PresentModeKHR::eMailbox)
             return presentMode;
     return vk::PresentModeKHR::eFifo;
 }

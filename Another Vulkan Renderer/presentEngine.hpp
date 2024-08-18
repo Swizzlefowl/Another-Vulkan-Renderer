@@ -14,11 +14,14 @@ namespace avr {
         PresentEngine(Context& other);
         ~PresentEngine();
         void createSwapchain();
+        void createSwapchainImageViews();
         void cleanupSwapchain();
         Context& ctx;
         vk::SwapchainKHR swapchain{};
         vk::Format swapChainImagesFormat{};
         vk::Extent2D swapChainExtent{};
+        std::vector<vk::Image> swapchainImages{};
+        std::vector<vk::ImageView> swapchainImageViews{};
 
     private:
         SwapChainCapablities getSwapChainCapabilities();

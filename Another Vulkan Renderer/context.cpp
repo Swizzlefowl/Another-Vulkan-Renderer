@@ -101,7 +101,7 @@ namespace avr {
             }
             return extensions;
             }() };
-
+       
         createInfo.enabledExtensionCount = static_cast<uint32_t>(enabledExtensions.size());
         createInfo.ppEnabledExtensionNames = enabledExtensions.data();
         if (vk::createInstance(&createInfo, nullptr, &instance) != vk::Result::eSuccess)
