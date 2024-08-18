@@ -5,7 +5,10 @@
 namespace avr {
     class Image {
     public:
-        static vk::ImageView createImageView(Context& ctx,vk::Image image, vk::Format format, vk::ImageSubresourceRange range);
+        Image();
+        ~Image();
+        vk::Image vkImage{};
+        vk::ImageView view{};
     };
 }
 

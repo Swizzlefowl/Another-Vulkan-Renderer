@@ -36,6 +36,8 @@ namespace avr {
         vk::PhysicalDevice physicalDevice{};
         vk::Device device{};
         vk::Queue queue{};
+        vk::CommandPool commandPool{};
+        vk::CommandBuffer commandBuffer{};
         DeletionQueue deleteQueue{};
         void initVulkanCtx();
         std::pair<uint32_t, QueueTypes> getQueueIndex(const vk::PhysicalDevice& dev, QueueTypes type);
@@ -47,7 +49,8 @@ namespace avr {
         bool isDeviceSuitable(const vk::PhysicalDevice& dev);
         vk::PhysicalDevice getPdevice();
         void createLogicalDevice();
-        
+        void createCommandPool();
+        void createCommandBuffer();
     };
 }
 

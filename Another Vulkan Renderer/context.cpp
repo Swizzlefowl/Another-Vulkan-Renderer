@@ -3,6 +3,7 @@
 #include <iostream>
 #include <algorithm>
 #include <fmt/core.h>
+#include "engineUtils.h"
 namespace avr {
     Context::Window::Window() {}
 
@@ -53,6 +54,8 @@ namespace avr {
         createVkInstance();
         createSurface();
         createLogicalDevice();
+        createCommandPool();
+        createCommandBuffer();
         return;
     }
 
@@ -249,6 +252,17 @@ namespace avr {
              device.destroy();
              fmt::println("destroyed device");
              });
+    }
+    void Context::createCommandPool(){
+        commandPool = avr::createCommandPool(*this);
+        fmt::println("created command pool");
+        deleteQueue.enqueue([&]() {
+            device.destroyCommandPool(commandPool);
+            fmt::println("command pool destroyed");
+            });
+    }
+    void Context::createCommandBuffer(){
+        commandBuffer = avr::createCommandBuffer(*this, commandPool);
     }
 }
 

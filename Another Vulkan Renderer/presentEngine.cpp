@@ -1,6 +1,6 @@
 #include "presentEngine.hpp"
 #include <fmt/color.h>
-#include "Image.hpp"
+#include "engineUtils.h"
 avr::PresentEngine::PresentEngine(Context& other) : ctx{other} {
 }
 
@@ -58,7 +58,7 @@ void avr::PresentEngine::createSwapchainImageViews(){
     for (auto& imageView : swapchainImageViews) {
         vk::ImageSubresourceRange imageSubResource{ vk::ImageAspectFlagBits::eColor,
          0, 1, 0, 1 };
-        imageView = avr::Image::createImageView(ctx, swapchainImages[i], swapChainImagesFormat, imageSubResource);
+        imageView = avr::createImageView(ctx, swapchainImages[i], swapChainImagesFormat, imageSubResource);
         i++;
     }
     fmt::println("created swpachain image views");
