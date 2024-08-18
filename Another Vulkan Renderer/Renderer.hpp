@@ -9,10 +9,17 @@ namespace avr {
         Renderer();
         ~Renderer();
         void preparePipeline(vk::Pipeline& pipe);
+        void createSyncObjects();
+        void recordCB(vk::CommandBuffer& cBuffer, uint32_t imageIndex);
+        void mainLoop();
+        void drawFrame();
         Context ctx{};
         PresentEngine pEngine{ctx};
         vk::PipelineLayout pipeLayout{};
         vk::Pipeline graphicsPipe{};
+        vk::Semaphore aquireSem{};
+        vk::Semaphore finishedRenderSem{};
+        vk::Fence inFlightFence{};
         DeletionQueue renderDelQueue{};
     };
 }

@@ -66,7 +66,9 @@ namespace avr {
         catch (vk::Error& err) {
             err.what();
         }
+        return vk::ShaderModule{};
     }
+
     vk::Pipeline createPipeline(Context& ctx, vk::PipelineLayout pipeLayout, vk::DescriptorSetLayout setLayout, const Shaders& shaders, const std::vector<vk::Format> formats){
        
         vk::PipelineShaderStageCreateInfo vertShaderStageInfo{};
@@ -100,8 +102,8 @@ namespace avr {
         rasterizer.rasterizerDiscardEnable = VK_FALSE;
         rasterizer.polygonMode = vk::PolygonMode::eFill;
         rasterizer.lineWidth = 1.0f;
-        rasterizer.cullMode = vk::CullModeFlagBits::eBack;
-        rasterizer.frontFace = vk::FrontFace::eCounterClockwise;
+        rasterizer.cullMode = vk::CullModeFlagBits::eNone;
+        rasterizer.frontFace = vk::FrontFace::eClockwise;
         rasterizer.depthBiasEnable = VK_FALSE;
         rasterizer.depthBiasConstantFactor = 0.0f;
         rasterizer.depthBiasClamp = 0.0f;
@@ -137,9 +139,9 @@ namespace avr {
         dynamicState.pDynamicStates = dynamicStates.data();
 
         vk::PipelineDepthStencilStateCreateInfo depthStencil{};
-        depthStencil.depthTestEnable = VK_TRUE;
-        depthStencil.depthWriteEnable = VK_TRUE;
-        depthStencil.depthCompareOp = vk::CompareOp::eLess;
+        depthStencil.depthTestEnable = VK_FALSE;
+        depthStencil.depthWriteEnable = VK_FALSE;
+        //depthStencil.depthCompareOp = vk::CompareOp::eLess;
         depthStencil.depthBoundsTestEnable = VK_FALSE;
         depthStencil.minDepthBounds = 0.0f; // Optional
         depthStencil.maxDepthBounds = 1.0f; // Optional
@@ -178,5 +180,37 @@ namespace avr {
         ctx.device.destroyShaderModule(shaders.vertShader);
         ctx.device.destroyShaderModule(shaders.fragShader);
         return pipe;
+    }
+    vk::Semaphore createVKSemaphore(Context& ctx){
+        vk::SemaphoreCreateInfo semaphoreInfo{};
+        try {
+            return ctx.device.createSemaphore(semaphoreInfo);
+        }
+        catch (vk::Error& err) {
+            throw std::runtime_error(err.what());
+        }
+    }
+
+    vk::Fence createVKFence(Context& ctx){
+        vk::FenceCreateInfo fenceInfo;
+        fenceInfo.flags = vk::FenceCreateFlagBits::eSignaled;
+        try {
+            return ctx.device.createFence(fenceInfo);
+        }
+        catch (vk::Error& err) {
+            throw std::runtime_error(err.what());
+        }
+    }
+    void transitionLayout(vk::CommandBuffer& cb, const std::vector<vk::ImageMemoryBarrier2>& barriers){
+        vk::DependencyInfo info{};
+        info.imageMemoryBarrierCount = barriers.size();
+        info.pImageMemoryBarriers = barriers.data();
+        cb.pipelineBarrier2(info);
+    }
+    void transitionLayout(vk::CommandBuffer& cb, const vk::ImageMemoryBarrier2& barrier){
+        vk::DependencyInfo info{};
+        info.imageMemoryBarrierCount = 1;
+        info.pImageMemoryBarriers = &barrier;
+        cb.pipelineBarrier2(info);
     }
 }

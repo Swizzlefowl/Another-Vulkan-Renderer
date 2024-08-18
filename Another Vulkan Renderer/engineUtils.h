@@ -20,4 +20,8 @@ namespace avr {
     std::vector<vk::CommandBuffer> createCommandBuffer(Context& ctx, vk::CommandPool& pool, uint32_t count);
     vk::ShaderModule createShader(Context& ctx, const std::string& fileName);
     vk::Pipeline createPipeline(Context& ctx, vk::PipelineLayout pipeLayout, vk::DescriptorSetLayout setLayout, const Shaders& shaders, const std::vector<vk::Format> formats);
+    vk::Semaphore createVKSemaphore(Context& ctx);
+    vk::Fence createVKFence(Context& ctx);
+    void transitionLayout(vk::CommandBuffer& cb, const std::vector<vk::ImageMemoryBarrier2>& barriers);
+    void transitionLayout(vk::CommandBuffer& cb, const vk::ImageMemoryBarrier2& barrier);
 }

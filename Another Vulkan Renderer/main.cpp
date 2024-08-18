@@ -3,10 +3,8 @@
 int main() {
     try {
         avr::Renderer renderer{};
-        renderer.init();
-        while (!glfwWindowShouldClose(renderer.ctx.getWindow())) {
-            glfwPollEvents();
-        }
+        renderer.init(720, 640, "yet another triangle");
+        renderer.mainLoop();
     }
     catch (std::exception& except) {
         std::cerr << except.what();
