@@ -228,10 +228,11 @@ namespace avr {
          vk::PhysicalDeviceVulkan13Features feature13{};
          feature12.bufferDeviceAddress = true;
          feature12.descriptorIndexing = true;
+         feature13.synchronization2 = true;
          feature13.dynamicRendering = true;
          features2.features.samplerAnisotropy = true;
          features2.pNext = &feature12;
-         features2.pNext = &feature13;
+         feature12.pNext = &feature13;
 
          vk::DeviceCreateInfo createInfo{};
          createInfo.pNext = &features2;
@@ -243,7 +244,7 @@ namespace avr {
          if (physicalDevice.createDevice(&createInfo, nullptr, &device) != vk::Result::eSuccess)
              throw std::runtime_error("failed to create device");
          queue = device.getQueue(queueIndex.first, 0);
-
+         fmt::println("created device");
          deleteQueue.enqueue([&]() {
              device.destroy();
              fmt::println("destroyed device");

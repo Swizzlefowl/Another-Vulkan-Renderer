@@ -31,22 +31,21 @@ namespace avr {
         void createWindow(size_t height, size_t width, const std::string& title);
         GLFWwindow* getWindow() const;
         Window window{};
-
-        void initVulkanCtx();
-    private:
         vk::Instance instance{};
         vk::SurfaceKHR surface{};
         vk::PhysicalDevice physicalDevice{};
         vk::Device device{};
         vk::Queue queue{};
         DeletionQueue deleteQueue{};
+        void initVulkanCtx();
+        std::pair<uint32_t, QueueTypes> getQueueIndex(const vk::PhysicalDevice& dev, QueueTypes type);
+    private:
         // @level level refers to instance or devicce level extension
         bool checkForRequiredExtension(const std::string& name, Levels level, vk::PhysicalDevice device = nullptr) const;
         void createVkInstance();
         void createSurface();
         bool isDeviceSuitable(const vk::PhysicalDevice& dev);
         vk::PhysicalDevice getPdevice();
-        std::pair<uint32_t, QueueTypes> getQueueIndex(const vk::PhysicalDevice& dev,QueueTypes type);
         void createLogicalDevice();
         
     };

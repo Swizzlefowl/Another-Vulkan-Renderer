@@ -1,12 +1,10 @@
-#include "context.h"
 #include <iostream>
-
+#include "Renderer.hpp"
 int main() {
     try {
-        avr::Context ctx{};
-        ctx.createWindow(720, 680, "another triangle");
-        ctx.initVulkanCtx();
-        while (!glfwWindowShouldClose(ctx.getWindow())) {
+        avr::Renderer renderer{};
+        renderer.init();
+        while (!glfwWindowShouldClose(renderer.ctx.getWindow())) {
             glfwPollEvents();
         }
     }
