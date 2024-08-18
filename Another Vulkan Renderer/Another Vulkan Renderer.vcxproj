@@ -159,6 +159,10 @@
     <ClInclude Include="presentEngine.hpp" />
     <ClInclude Include="Renderer.hpp" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\..\Users\Arbaz\source\repos\VulkanRAII\fragment.spv" />
+    <None Include="..\..\..\Users\Arbaz\source\repos\VulkanRAII\vertex.spv" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
