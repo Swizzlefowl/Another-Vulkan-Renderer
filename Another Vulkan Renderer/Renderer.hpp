@@ -13,13 +13,15 @@ namespace avr {
         void recordCB(vk::CommandBuffer& cBuffer, uint32_t imageIndex);
         void mainLoop();
         void drawFrame();
+        const uint32_t frameInFlight{ 2 };
+        uint32_t frame{};
         Context ctx{};
         PresentEngine pEngine{ctx};
         vk::PipelineLayout pipeLayout{};
         vk::Pipeline graphicsPipe{};
-        vk::Semaphore aquireSem{};
-        vk::Semaphore finishedRenderSem{};
-        vk::Fence inFlightFence{};
+        std::vector<vk::Semaphore> aquireSem{2};
+        std::vector<vk::Semaphore> finishedRenderSem{};
+        std::vector<vk::Fence> inFlightFence{2};
         DeletionQueue renderDelQueue{};
     };
 }

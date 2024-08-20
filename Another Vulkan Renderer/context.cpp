@@ -262,7 +262,7 @@ namespace avr {
             });
     }
     void Context::createCommandBuffer(){
-        commandBuffer = avr::createCommandBuffer(*this, commandPool);
+        commandBuffer = avr::createCommandBuffer(*this, commandPool, 2);
     }
 }
 

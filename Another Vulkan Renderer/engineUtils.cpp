@@ -132,7 +132,7 @@ namespace avr {
         colorBlending.blendConstants[3] = 0.0f;
 
         std::vector<vk::DynamicState> dynamicStates{
-            vk::DynamicState::eViewport, vk::DynamicState::eScissor };
+            vk::DynamicState::eViewport, vk::DynamicState::eScissor};
 
         vk::PipelineDynamicStateCreateInfo dynamicState{};
         dynamicState.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size());

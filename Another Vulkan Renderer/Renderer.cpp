@@ -56,16 +56,25 @@ namespace avr {
             fmt::println("destroyed pipeline");
             });
     }
-    void Renderer::createSyncObjects(){
-        inFlightFence = avr::createVKFence(ctx);
-        aquireSem = avr::createVKSemaphore(ctx);
-        finishedRenderSem = avr::createVKSemaphore(ctx);
+    void Renderer::createSyncObjects() {
+        for (uint32_t index{}; index < frameInFlight; index++) {
+            inFlightFence[index] = avr::createVKFence(ctx);
+            aquireSem[index] = avr::createVKSemaphore(ctx);
+        }
+        finishedRenderSem.resize(pEngine.swapchainImages.size());
+        for (uint32_t index{}; index < pEngine.swapchainImages.size(); index++) {
+            finishedRenderSem[index] = avr::createVKSemaphore(ctx);
+        }
+
         renderDelQueue.enqueue([&]() {
             ctx.device.waitIdle();
-            ctx.device.destroySemaphore(aquireSem);
-            ctx.device.destroySemaphore(finishedRenderSem);
-            ctx.device.destroyFence(inFlightFence);
-            fmt::println("destroyed semaphore and fence");
+            for(auto& fence : inFlightFence)
+                ctx.device.destroyFence(fence);
+            for(auto& renderSem : finishedRenderSem)
+                ctx.device.destroySemaphore(renderSem);
+            for(auto& aqSem : aquireSem)
+                ctx.device.destroySemaphore(aqSem);
+            fmt::println("destroyed semaphores and fences");
             }
         );
     }
@@ -120,7 +129,7 @@ namespace avr {
         scissor.extent = pEngine.swapChainExtent;
         cBuffer.setScissor(0, scissor);
         cBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, graphicsPipe);
-        cBuffer.draw(3, 1, 0, 0);
+        cBuffer.draw(6, 1, 0, 0);
         cBuffer.endRendering();
         vk::ImageMemoryBarrier2 presentBarrier{};
         presentBarrier.oldLayout = vk::ImageLayout::eColorAttachmentOptimal;
@@ -147,47 +156,42 @@ namespace avr {
     void Renderer::mainLoop(){
         while (!glfwWindowShouldClose(ctx.getWindow())) {
             glfwPollEvents();
-            //changeColor(checkUserInput());
             drawFrame();
         }
         ctx.device.waitIdle();
     }
     void Renderer::drawFrame(){
-        ctx.device.waitForFences(inFlightFence, VK_TRUE, UINT64_MAX);
+        ctx.device.waitForFences(inFlightFence[frame], VK_FALSE, UINT64_MAX);
         vk::Result result;
         uint32_t imageIndex{};
-
-        // unfortunately vk raii seems to throw an exception only on Nvidia if you cant present
-        //  or aquire images anymore because the surface is incompatible
-        //  so the try catch blocks are necessary to successfully recreate
-        //  the swapchain
             std::tie(result, imageIndex) = ctx.device.acquireNextImageKHR(pEngine.swapchain,
-                UINT64_MAX, aquireSem
+                UINT64_MAX, aquireSem[frame]
             );
-        
-        ctx.device.resetFences(inFlightFence);
+        ctx.device.resetFences(inFlightFence[frame]);
 
-        ctx.commandBuffer.reset();
-        recordCB(ctx.commandBuffer, imageIndex);
+        ctx.commandBuffer[frame].reset();
+        recordCB(ctx.commandBuffer[frame], imageIndex);
         //recordComputeCB(pResources->commandBuffer[0], imageIndex);
         vk::SubmitInfo submitInfo{};
         submitInfo.waitSemaphoreCount = 1;
-        submitInfo.pWaitSemaphores = &aquireSem;
+        submitInfo.pWaitSemaphores = &aquireSem[frame];
         submitInfo.commandBufferCount = 1;
-        submitInfo.pCommandBuffers = &ctx.commandBuffer;
+        submitInfo.pCommandBuffers = &ctx.commandBuffer[frame];
         vk::PipelineStageFlags waitStages{ vk::PipelineStageFlagBits::eColorAttachmentOutput };
         submitInfo.pWaitDstStageMask = &waitStages;
         submitInfo.signalSemaphoreCount = 1;
-        submitInfo.pSignalSemaphores = &finishedRenderSem;
-        ctx.queue.submit(submitInfo, inFlightFence);
+        submitInfo.pSignalSemaphores = &finishedRenderSem[imageIndex];
+        ctx.queue.submit(submitInfo, inFlightFence[frame]);
 
         vk::PresentInfoKHR presentInfo{};
         presentInfo.waitSemaphoreCount = 1;
-        presentInfo.pWaitSemaphores = &finishedRenderSem;
+        presentInfo.pWaitSemaphores = &finishedRenderSem[imageIndex];
         presentInfo.pImageIndices = &imageIndex;
         presentInfo.swapchainCount = 1;
         presentInfo.pSwapchains = &pEngine.swapchain;
         presentInfo.pResults = nullptr;
         result = ctx.queue.presentKHR(presentInfo);
+
+       frame = (frame + 1) % frameInFlight;
     }
 }
