@@ -225,4 +225,18 @@ namespace avr {
         else
             return buffer;
     }
+    void mapMemory(const Context& ctx, const VmaAllocation& allocation, void* src, VkDeviceSize size){
+        void* stagingMappedPtr{ nullptr };
+        auto result = vmaMapMemory(ctx.allocator, allocation, &stagingMappedPtr);
+
+        if (result != VkResult::VK_SUCCESS)
+            throw std::runtime_error("map memory failed");
+
+        std::memcpy(stagingMappedPtr, src, size);
+        result = vmaFlushAllocation(ctx.allocator, allocation, 0, size);
+
+        if (result != VkResult::VK_SUCCESS)
+            throw std::runtime_error("vma flush failed");
+        vmaUnmapMemory(ctx.allocator, allocation);
+    }
 }

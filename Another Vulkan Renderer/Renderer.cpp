@@ -8,6 +8,7 @@ namespace avr {
         pEngine.createSwapchainImageViews();
         preparePipeline(graphicsPipe);
         createSyncObjects();
+        registerMeshes();
     }
 
     void Renderer::init(size_t height, size_t width, const std::string& title) {
@@ -17,7 +18,7 @@ namespace avr {
         pEngine.createSwapchainImageViews();
         preparePipeline(graphicsPipe);
         createSyncObjects();
-        createVertexBuffer();
+        registerMeshes();
     }
 
     Renderer::Renderer() {
@@ -83,27 +84,14 @@ namespace avr {
     }
 
     void Renderer::createVertexBuffer(){
-        VmaAllocationCreateInfo allocInfo{};
-        allocInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
-        allocInfo.usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
-        vk::DeviceSize size = sizeof(Vertex) * vertices.size();
-        vk::BufferUsageFlags usage = vk::BufferUsageFlagBits::eShaderDeviceAddress;
-        vertexBuffer = createBuffer(ctx, allocInfo, usage, size, vertexAlloc);
-        fmt::println("created vertex buffer");
-      
-        void* mapped{ nullptr };
-        auto result = vmaMapMemory(ctx.allocator, vertexAlloc, &mapped);
-        if (result != VkResult::VK_SUCCESS)
-            throw std::runtime_error("failed to map memory");
-        std::memcpy(mapped, vertices.data(), size);
-        vmaUnmapMemory(ctx.allocator, vertexAlloc);
-        renderDelQueue.enqueue([&]() {
-            vmaDestroyBuffer(ctx.allocator, vertexBuffer, vertexAlloc);
-            fmt::println("destoyed vertex buffer");
-            });
+    }
 
-        vk::BufferDeviceAddressInfo addrInfo{vertexBuffer};
-         vertexAdress =  ctx.device.getBufferAddress(addrInfo);
+    void Renderer::registerMeshes(){
+        mesh.createMesh("viking_room.obj", "");
+        renderDelQueue.enqueue([&]() {
+            vmaDestroyBuffer(ctx.allocator, mesh.vertBuffer, mesh.vertAlloc);
+            fmt::println("destroyed mesh");
+            });
     }
 
     void Renderer::recordCB(vk::CommandBuffer& cBuffer, uint32_t imageIndex){
@@ -156,8 +144,8 @@ namespace avr {
         scissor.extent = pEngine.swapChainExtent;
         cBuffer.setScissor(0, scissor);
         cBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, graphicsPipe);
-        cBuffer.pushConstants<vk::DeviceAddress>(pipeLayout, vk::ShaderStageFlagBits::eVertex, 0, vertexAdress);
-        cBuffer.draw(6, 1, 0, 0);
+        cBuffer.pushConstants<vk::DeviceAddress>(pipeLayout, vk::ShaderStageFlagBits::eVertex, 0, mesh.vertexAdress);
+        cBuffer.draw(mesh.vertCount, 1, 0, 0);
         cBuffer.endRendering();
         vk::ImageMemoryBarrier2 presentBarrier{};
         presentBarrier.oldLayout = vk::ImageLayout::eColorAttachmentOptimal;

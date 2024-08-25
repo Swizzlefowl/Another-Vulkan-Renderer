@@ -2,6 +2,7 @@
 #include "context.h"
 #include "presentEngine.hpp"
 #include "engineUtils.h"
+#include "mesh.h"
 namespace avr {
     class Renderer {
     public:
@@ -12,6 +13,7 @@ namespace avr {
         void preparePipeline(vk::Pipeline& pipe);
         void createSyncObjects();
         void createVertexBuffer();
+        void registerMeshes();
         void recordCB(vk::CommandBuffer& cBuffer, uint32_t imageIndex);
         void mainLoop();
         void drawFrame();
@@ -24,17 +26,10 @@ namespace avr {
         std::vector<vk::Semaphore> aquireSem{2};
         std::vector<vk::Semaphore> finishedRenderSem{};
         std::vector<vk::Fence> inFlightFence{2};
-        std::vector<Vertex> vertices{
-            {glm::vec2(0.0, -0.5)},
-            {glm::vec2(0.0, 0.0)},
-            {glm::vec2(-0.5, 0.0) },
-            {glm::vec2(-0.5, -0.5)},
-            {glm::vec2(0.0, -0.5) },
-            {glm::vec2(-0.5, 0.0)}
-        };
         vk::Buffer vertexBuffer{ nullptr };
         VmaAllocation vertexAlloc{nullptr};
         vk::DeviceAddress vertexAdress{};
+        Mesh mesh{ ctx };
         DeletionQueue renderDelQueue{};
     };
 }

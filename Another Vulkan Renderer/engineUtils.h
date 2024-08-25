@@ -19,7 +19,9 @@ namespace avr {
         vk::ShaderModule computeShader{}; //maybe unused depending on the type
     };
     struct Vertex {
-        glm::vec2 pos{};
+        glm::vec3 pos{};
+        glm::vec3 color{};
+        glm::vec2 texCoord{};
     };
 
     vk::ImageView createImageView(Context& ctx, vk::Image image, vk::Format format, vk::ImageSubresourceRange range);
@@ -33,5 +35,6 @@ namespace avr {
     void transitionLayout(vk::CommandBuffer& cb, const std::vector<vk::ImageMemoryBarrier2>& barriers);
     void transitionLayout(vk::CommandBuffer& cb, const vk::ImageMemoryBarrier2& barrier);
     vk::Buffer createBuffer(Context& ctx, const VmaAllocationCreateInfo& info, vk::BufferUsageFlags usage, vk::DeviceSize size, VmaAllocation& allocation);
+    void mapMemory(const Context& ctx, const VmaAllocation& allocation, void* src, VkDeviceSize size);
 
 }

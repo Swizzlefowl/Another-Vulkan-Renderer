@@ -2,8 +2,14 @@
 #extension GL_EXT_buffer_reference : require
 #extension GL_EXT_scalar_block_layout : enable
 
-layout(scalar, buffer_reference) readonly buffer VertexBuff{
-	vec2 pos[];
+struct Attrib{
+	vec3 pos;
+    vec3 color;
+    vec2 texCoord;
+};
+
+layout(scalar, buffer_reference, buffer_reference_align = 8) readonly buffer VertexBuff{
+	    Attrib attribs[];
 };
 
 layout(scalar, push_constant) uniform constants
@@ -13,6 +19,6 @@ layout(scalar, push_constant) uniform constants
 
 layout(location = 0) out vec3 color;
 void main(){
-	gl_Position = vec4(ps.vertices.pos[gl_VertexIndex], 0.0, 1.0);
+	gl_Position = vec4(ps.vertices.attribs[gl_VertexIndex].pos, 1.0);
 	color = vec3(0.0, 1.0, 0.0);
 }
