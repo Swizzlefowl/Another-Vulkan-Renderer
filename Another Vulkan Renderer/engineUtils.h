@@ -2,6 +2,10 @@
 #include <vulkan/vulkan.hpp>
 #include <fmt/core.h>
 #include <vector>
+#define GLM_FORCE_RADIANS
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 #include "context.h"
 namespace avr {
     enum class pipeLineType {
@@ -14,6 +18,10 @@ namespace avr {
         vk::ShaderModule fragShader{};
         vk::ShaderModule computeShader{}; //maybe unused depending on the type
     };
+    struct Vertex {
+        glm::vec2 pos{};
+    };
+
     vk::ImageView createImageView(Context& ctx, vk::Image image, vk::Format format, vk::ImageSubresourceRange range);
     vk::CommandPool createCommandPool(Context& ctx);
     vk::CommandBuffer createCommandBuffer(Context& ctx, vk::CommandPool& pool);

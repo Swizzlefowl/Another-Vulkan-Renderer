@@ -232,6 +232,7 @@ namespace avr {
          vk::PhysicalDeviceVulkan13Features feature13{};
          feature12.bufferDeviceAddress = true;
          feature12.descriptorIndexing = true;
+         feature12.scalarBlockLayout = true;
          feature13.synchronization2 = true;
          feature13.dynamicRendering = true;
          features2.features.samplerAnisotropy = true;
@@ -272,6 +273,7 @@ namespace avr {
         info.instance = instance;
         info.physicalDevice = physicalDevice;
         info.device = device;
+        info.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
         vmaCreateAllocator(&info, &allocator);
         fmt::println("allocator created");
 

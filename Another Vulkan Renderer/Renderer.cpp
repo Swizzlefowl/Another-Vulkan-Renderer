@@ -1,5 +1,5 @@
 #include "Renderer.hpp"
-#include "engineUtils.h"
+
 namespace avr {
     void Renderer::init() {
         ctx.createWindow(720, 640, "default name");
@@ -17,6 +17,7 @@ namespace avr {
         pEngine.createSwapchainImageViews();
         preparePipeline(graphicsPipe);
         createSyncObjects();
+        createVertexBuffer();
     }
 
     Renderer::Renderer() {
@@ -31,12 +32,14 @@ namespace avr {
         shaders.type = avr::pipeLineType::Graphics;
         shaders.vertShader = avr::createShader(ctx, "vertex.spv");
         shaders.fragShader = avr::createShader(ctx, "fragment.spv");
-
+        vk::PushConstantRange ranges{};
+        ranges.stageFlags = vk::ShaderStageFlagBits::eVertex;
+        ranges.size = 100;
         vk::PipelineLayoutCreateInfo pipelineLayoutInfo{};
         pipelineLayoutInfo.setLayoutCount = 0;
         pipelineLayoutInfo.pSetLayouts = nullptr;
-        pipelineLayoutInfo.pushConstantRangeCount = 0;
-        pipelineLayoutInfo.pPushConstantRanges = nullptr;
+        pipelineLayoutInfo.pushConstantRangeCount = 1;
+        pipelineLayoutInfo.pPushConstantRanges = &ranges;
 
         try {
             pipeLayout = ctx.device.createPipelineLayout(pipelineLayoutInfo);
@@ -77,6 +80,30 @@ namespace avr {
             fmt::println("destroyed semaphores and fences");
             }
         );
+    }
+
+    void Renderer::createVertexBuffer(){
+        VmaAllocationCreateInfo allocInfo{};
+        allocInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
+        allocInfo.usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
+        vk::DeviceSize size = sizeof(Vertex) * vertices.size();
+        vk::BufferUsageFlags usage = vk::BufferUsageFlagBits::eShaderDeviceAddress;
+        vertexBuffer = createBuffer(ctx, allocInfo, usage, size, vertexAlloc);
+        fmt::println("created vertex buffer");
+      
+        void* mapped{ nullptr };
+        auto result = vmaMapMemory(ctx.allocator, vertexAlloc, &mapped);
+        if (result != VkResult::VK_SUCCESS)
+            throw std::runtime_error("failed to map memory");
+        std::memcpy(mapped, vertices.data(), size);
+        vmaUnmapMemory(ctx.allocator, vertexAlloc);
+        renderDelQueue.enqueue([&]() {
+            vmaDestroyBuffer(ctx.allocator, vertexBuffer, vertexAlloc);
+            fmt::println("destoyed vertex buffer");
+            });
+
+        vk::BufferDeviceAddressInfo addrInfo{vertexBuffer};
+         vertexAdress =  ctx.device.getBufferAddress(addrInfo);
     }
 
     void Renderer::recordCB(vk::CommandBuffer& cBuffer, uint32_t imageIndex){
@@ -129,6 +156,7 @@ namespace avr {
         scissor.extent = pEngine.swapChainExtent;
         cBuffer.setScissor(0, scissor);
         cBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, graphicsPipe);
+        cBuffer.pushConstants<vk::DeviceAddress>(pipeLayout, vk::ShaderStageFlagBits::eVertex, 0, vertexAdress);
         cBuffer.draw(6, 1, 0, 0);
         cBuffer.endRendering();
         vk::ImageMemoryBarrier2 presentBarrier{};
