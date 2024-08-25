@@ -56,6 +56,7 @@ namespace avr {
         createLogicalDevice();
         createCommandPool();
         createCommandBuffer();
+        createAllocator();
         return;
     }
 
@@ -263,6 +264,21 @@ namespace avr {
     }
     void Context::createCommandBuffer(){
         commandBuffer = avr::createCommandBuffer(*this, commandPool, 2);
+    }
+
+    void Context::createAllocator(){
+        VmaAllocatorCreateInfo info{};
+        info.vulkanApiVersion = VK_API_VERSION_1_3;
+        info.instance = instance;
+        info.physicalDevice = physicalDevice;
+        info.device = device;
+        vmaCreateAllocator(&info, &allocator);
+        fmt::println("allocator created");
+
+        deleteQueue.enqueue([&]() {
+            vmaDestroyAllocator(allocator);
+            fmt::println("allocator destroyed");
+            });
     }
 }
 

@@ -150,6 +150,7 @@
     <ClCompile Include="main.cpp" />
     <ClCompile Include="presentEngine.cpp" />
     <ClCompile Include="Renderer.cpp" />
+    <ClCompile Include="vkAllocator.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="context.h" />

@@ -1,6 +1,7 @@
 #pragma once
 #include <string>
 #include <vulkan/vulkan.hpp>
+#include <vma/vk_mem_alloc.h>
 #include <GLFW/glfw3.h>
 #include "deletionQueue.h"
 namespace avr {
@@ -38,6 +39,7 @@ namespace avr {
         vk::Queue queue{};
         vk::CommandPool commandPool{};
         std::vector<vk::CommandBuffer> commandBuffer{};
+        VmaAllocator allocator{nullptr};
         DeletionQueue deleteQueue{};
         void initVulkanCtx();
         std::pair<uint32_t, QueueTypes> getQueueIndex(const vk::PhysicalDevice& dev, QueueTypes type);
@@ -51,6 +53,7 @@ namespace avr {
         void createLogicalDevice();
         void createCommandPool();
         void createCommandBuffer();
+        void createAllocator();
     };
 }
 

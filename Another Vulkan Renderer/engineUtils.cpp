@@ -1,7 +1,7 @@
 #include "engineUtils.h"
 #include <fstream>
 namespace avr {
-    vk::ImageView createImageView(Context& ctx, vk::Image image, vk::Format format, vk::ImageSubresourceRange range){
+    vk::ImageView createImageView(Context& ctx, vk::Image image, vk::Format format, vk::ImageSubresourceRange range) {
         vk::ImageViewCreateInfo createInfo{};
         createInfo.image = image;
         createInfo.viewType = vk::ImageViewType::e2D;
@@ -16,7 +16,7 @@ namespace avr {
         return ctx.device.createImageView(createInfo);
     }
 
-    vk::CommandPool createCommandPool(Context& ctx){
+    vk::CommandPool createCommandPool(Context& ctx) {
         vk::CommandPoolCreateInfo poolInfo{};
         poolInfo.flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer;
         poolInfo.queueFamilyIndex = ctx.getQueueIndex(ctx.physicalDevice, QueueTypes::Graphics).first;
@@ -28,21 +28,21 @@ namespace avr {
         }
     }
 
-    vk::CommandBuffer createCommandBuffer(Context& ctx, vk::CommandPool& pool){
+    vk::CommandBuffer createCommandBuffer(Context& ctx, vk::CommandPool& pool) {
         vk::CommandBufferAllocateInfo allocateInfo{};
         allocateInfo.commandPool = pool;
         allocateInfo.level = vk::CommandBufferLevel::ePrimary;
         allocateInfo.commandBufferCount = 1;
         return ctx.device.allocateCommandBuffers(allocateInfo)[0];
     }
-    std::vector<vk::CommandBuffer> createCommandBuffer(Context& ctx, vk::CommandPool& pool, uint32_t count){
+    std::vector<vk::CommandBuffer> createCommandBuffer(Context& ctx, vk::CommandPool& pool, uint32_t count) {
         vk::CommandBufferAllocateInfo allocateInfo{};
         allocateInfo.commandPool = pool;
         allocateInfo.level = vk::CommandBufferLevel::ePrimary;
         allocateInfo.commandBufferCount = count;
         return ctx.device.allocateCommandBuffers(allocateInfo);
     }
-    vk::ShaderModule createShader(Context& ctx, const std::string& fileName){
+    vk::ShaderModule createShader(Context& ctx, const std::string& fileName) {
         // remember to do a bitwise or operation between the flags instead of
    // adding a comma....
         std::ifstream file{ fileName, std::ios::ate | std::ios::binary };
@@ -69,8 +69,8 @@ namespace avr {
         return vk::ShaderModule{};
     }
 
-    vk::Pipeline createPipeline(Context& ctx, vk::PipelineLayout pipeLayout, vk::DescriptorSetLayout setLayout, const Shaders& shaders, const std::vector<vk::Format> formats){
-       
+    vk::Pipeline createPipeline(Context& ctx, vk::PipelineLayout pipeLayout, vk::DescriptorSetLayout setLayout, const Shaders& shaders, const std::vector<vk::Format> formats) {
+
         vk::PipelineShaderStageCreateInfo vertShaderStageInfo{};
         vertShaderStageInfo.stage = vk::ShaderStageFlagBits::eVertex;
         vertShaderStageInfo.module = shaders.vertShader;
@@ -132,7 +132,7 @@ namespace avr {
         colorBlending.blendConstants[3] = 0.0f;
 
         std::vector<vk::DynamicState> dynamicStates{
-            vk::DynamicState::eViewport, vk::DynamicState::eScissor};
+            vk::DynamicState::eViewport, vk::DynamicState::eScissor };
 
         vk::PipelineDynamicStateCreateInfo dynamicState{};
         dynamicState.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size());
@@ -181,7 +181,7 @@ namespace avr {
         ctx.device.destroyShaderModule(shaders.fragShader);
         return pipe;
     }
-    vk::Semaphore createVKSemaphore(Context& ctx){
+    vk::Semaphore createVKSemaphore(Context& ctx) {
         vk::SemaphoreCreateInfo semaphoreInfo{};
         try {
             return ctx.device.createSemaphore(semaphoreInfo);
@@ -191,7 +191,7 @@ namespace avr {
         }
     }
 
-    vk::Fence createVKFence(Context& ctx){
+    vk::Fence createVKFence(Context& ctx) {
         vk::FenceCreateInfo fenceInfo;
         fenceInfo.flags = vk::FenceCreateFlagBits::eSignaled;
         try {
@@ -201,16 +201,28 @@ namespace avr {
             throw std::runtime_error(err.what());
         }
     }
-    void transitionLayout(vk::CommandBuffer& cb, const std::vector<vk::ImageMemoryBarrier2>& barriers){
+    void transitionLayout(vk::CommandBuffer& cb, const std::vector<vk::ImageMemoryBarrier2>& barriers) {
         vk::DependencyInfo info{};
         info.imageMemoryBarrierCount = barriers.size();
         info.pImageMemoryBarriers = barriers.data();
         cb.pipelineBarrier2(info);
     }
-    void transitionLayout(vk::CommandBuffer& cb, const vk::ImageMemoryBarrier2& barrier){
+    void transitionLayout(vk::CommandBuffer& cb, const vk::ImageMemoryBarrier2& barrier) {
         vk::DependencyInfo info{};
         info.imageMemoryBarrierCount = 1;
         info.pImageMemoryBarriers = &barrier;
         cb.pipelineBarrier2(info);
+    }
+    vk::Buffer createBuffer(Context& ctx, const VmaAllocationCreateInfo& info, vk::BufferUsageFlags usage, vk::DeviceSize size, VmaAllocation& allocation) {
+        vk::BufferCreateInfo bufferInfo{};
+        bufferInfo.size = size;
+        bufferInfo.usage = usage;
+        vk::Buffer buffer{};
+        auto result = vmaCreateBuffer(ctx.allocator, reinterpret_cast<VkBufferCreateInfo*>(&bufferInfo), &info, reinterpret_cast<VkBuffer*>(&buffer), &allocation, nullptr);
+
+        if (result != VkResult::VK_SUCCESS)
+            throw std::runtime_error("creating buffer failed");
+        else
+            return buffer;
     }
 }

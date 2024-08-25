@@ -24,4 +24,6 @@ namespace avr {
     vk::Fence createVKFence(Context& ctx);
     void transitionLayout(vk::CommandBuffer& cb, const std::vector<vk::ImageMemoryBarrier2>& barriers);
     void transitionLayout(vk::CommandBuffer& cb, const vk::ImageMemoryBarrier2& barrier);
+    vk::Buffer createBuffer(Context& ctx, const VmaAllocationCreateInfo& info, vk::BufferUsageFlags usage, vk::DeviceSize size, VmaAllocation& allocation);
+
 }
