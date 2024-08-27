@@ -1,7 +1,7 @@
 #include "engineUtils.h"
 #include <fstream>
 namespace avr {
-    vk::ImageView createImageView(Context& ctx, vk::Image image, vk::Format format, vk::ImageSubresourceRange range) {
+    vk::ImageView createImageView(Context& ctx, vk::Image image, vk::Format format, vk::ImageSubresourceRange range, vk::ImageViewType viewType) {
         vk::ImageViewCreateInfo createInfo{};
         createInfo.image = image;
         createInfo.viewType = vk::ImageViewType::e2D;
@@ -102,8 +102,8 @@ namespace avr {
         rasterizer.rasterizerDiscardEnable = VK_FALSE;
         rasterizer.polygonMode = vk::PolygonMode::eFill;
         rasterizer.lineWidth = 1.0f;
-        rasterizer.cullMode = vk::CullModeFlagBits::eNone;
-        rasterizer.frontFace = vk::FrontFace::eClockwise;
+        rasterizer.cullMode = vk::CullModeFlagBits::eBack;
+        rasterizer.frontFace = vk::FrontFace::eCounterClockwise;
         rasterizer.depthBiasEnable = VK_FALSE;
         rasterizer.depthBiasConstantFactor = 0.0f;
         rasterizer.depthBiasClamp = 0.0f;
@@ -139,14 +139,14 @@ namespace avr {
         dynamicState.pDynamicStates = dynamicStates.data();
 
         vk::PipelineDepthStencilStateCreateInfo depthStencil{};
-        depthStencil.depthTestEnable = VK_FALSE;
-        depthStencil.depthWriteEnable = VK_FALSE;
-        //depthStencil.depthCompareOp = vk::CompareOp::eLess;
+        depthStencil.depthTestEnable = VK_TRUE;
+        depthStencil.depthWriteEnable = VK_TRUE;
+        depthStencil.depthCompareOp = vk::CompareOp::eLess;
         depthStencil.depthBoundsTestEnable = VK_FALSE;
         depthStencil.minDepthBounds = 0.0f; // Optional
         depthStencil.maxDepthBounds = 1.0f; // Optional
         depthStencil.stencilTestEnable = VK_FALSE; // Optional
-
+    
         vk::GraphicsPipelineCreateInfo pipelineInfo{};
         pipelineInfo.stageCount = shaderStagesInfo.size();
         pipelineInfo.pStages = shaderStagesInfo.data();
@@ -173,7 +173,7 @@ namespace avr {
         try {
             pipe = ctx.device.createGraphicsPipeline(nullptr, pipelineInfo).value;
         }
-        catch (vk::SystemError err) {
+        catch (vk::SystemError& err) {
             throw std::runtime_error("failed to create graphics pipeline!");
         }
         fmt::println("created pipeline");

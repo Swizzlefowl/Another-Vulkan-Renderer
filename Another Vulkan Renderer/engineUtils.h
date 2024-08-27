@@ -24,7 +24,7 @@ namespace avr {
         glm::vec2 texCoord{};
     };
 
-    vk::ImageView createImageView(Context& ctx, vk::Image image, vk::Format format, vk::ImageSubresourceRange range);
+    vk::ImageView createImageView(Context& ctx, vk::Image image, vk::Format format, vk::ImageSubresourceRange range, vk::ImageViewType viewType);
     vk::CommandPool createCommandPool(Context& ctx);
     vk::CommandBuffer createCommandBuffer(Context& ctx, vk::CommandPool& pool);
     std::vector<vk::CommandBuffer> createCommandBuffer(Context& ctx, vk::CommandPool& pool, uint32_t count);

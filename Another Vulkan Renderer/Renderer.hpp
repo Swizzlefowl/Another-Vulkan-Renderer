@@ -3,6 +3,7 @@
 #include "presentEngine.hpp"
 #include "engineUtils.h"
 #include "mesh.h"
+#include "Image.hpp"
 namespace avr {
     class Renderer {
     public:
@@ -13,6 +14,7 @@ namespace avr {
         void preparePipeline(vk::Pipeline& pipe);
         void createSyncObjects();
         void createVertexBuffer();
+        void createDepthBuffer();
         void registerMeshes();
         void recordCB(vk::CommandBuffer& cBuffer, uint32_t imageIndex);
         void mainLoop();
@@ -23,12 +25,10 @@ namespace avr {
         PresentEngine pEngine{ctx};
         vk::PipelineLayout pipeLayout{};
         vk::Pipeline graphicsPipe{};
+        avr::Image depthImage{};
         std::vector<vk::Semaphore> aquireSem{2};
         std::vector<vk::Semaphore> finishedRenderSem{};
         std::vector<vk::Fence> inFlightFence{2};
-        vk::Buffer vertexBuffer{ nullptr };
-        VmaAllocation vertexAlloc{nullptr};
-        vk::DeviceAddress vertexAdress{};
         Mesh mesh{ ctx };
         DeletionQueue renderDelQueue{};
     };

@@ -8,6 +8,7 @@ namespace avr {
         pEngine.createSwapchainImageViews();
         preparePipeline(graphicsPipe);
         createSyncObjects();
+        createDepthBuffer();
         registerMeshes();
     }
 
@@ -18,6 +19,7 @@ namespace avr {
         pEngine.createSwapchainImageViews();
         preparePipeline(graphicsPipe);
         createSyncObjects();
+        createDepthBuffer();
         registerMeshes();
     }
 
@@ -86,6 +88,28 @@ namespace avr {
     void Renderer::createVertexBuffer(){
     }
 
+    void Renderer::createDepthBuffer(){
+        imageBuilder builder{};
+        ImageViewBuilder viewBuilder{};
+        depthImage = builder.setWidth(pEngine.swapChainExtent.width)
+            .setHeight(pEngine.swapChainExtent.height)
+            .setUsage(vk::ImageUsageFlagBits::eDepthStencilAttachment)
+            .setFormat(vk::Format::eD32Sfloat)
+            .createImage(ctx, VmaAllocationCreateFlagBits::VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT);
+
+        depthImage.view = viewBuilder.setImage(depthImage.image)
+            .setAspect(vk::ImageAspectFlagBits::eDepth)
+            .setFormat(depthImage.format)
+            .createImageView(ctx);
+
+        fmt::println("created depth image");
+        renderDelQueue.enqueue([&]() {
+            vmaDestroyImage(ctx.allocator, depthImage.image, depthImage.alloc);
+            ctx.device.destroyImageView(depthImage.view);
+            fmt::println("destroyed depth image");
+            });
+    }
+
     void Renderer::registerMeshes(){
         mesh.createMesh("viking_room.obj", "");
         renderDelQueue.enqueue([&]() {
@@ -107,8 +131,18 @@ namespace avr {
         aInfo.storeOp = vk::AttachmentStoreOp::eStore;
         aInfo.imageView = pEngine.swapchainImageViews[imageIndex];
 
+        vk::RenderingAttachmentInfo dInfo{};
+        vk::ClearValue depthClear{};
+        depthClear.depthStencil = vk::ClearDepthStencilValue{ 1.0, 0 };
+        dInfo.clearValue = depthClear;
+        dInfo.imageLayout = vk::ImageLayout::eDepthAttachmentOptimal;
+        dInfo.loadOp = vk::AttachmentLoadOp::eClear;
+        dInfo.storeOp = vk::AttachmentStoreOp::eStore;
+        dInfo.imageView = depthImage.view;
+
         rInfo.colorAttachmentCount = 1;
         rInfo.pColorAttachments = &aInfo;
+        rInfo.pDepthAttachment = &dInfo;
         rInfo.layerCount = 1;
         rInfo.renderArea = vk::Rect2D{
             {0, 0}, pEngine.swapChainExtent };
@@ -127,7 +161,22 @@ namespace avr {
         barrier.dstStageMask = vk::PipelineStageFlagBits2::eColorAttachmentOutput;
         barrier.dstAccessMask = vk::AccessFlagBits2::eColorAttachmentWrite;
 
+        vk::ImageMemoryBarrier2 depthBarrier{};
+        depthBarrier.oldLayout = vk::ImageLayout::eUndefined;
+        depthBarrier.newLayout = vk::ImageLayout::eDepthAttachmentOptimal;
+        depthBarrier.image = depthImage.image;
+        vk::ImageSubresourceRange depthimageSubResource{ vk::ImageAspectFlagBits::eDepth,
+           0, 1, 0, 1 };
+        depthBarrier.subresourceRange = depthimageSubResource;
+        depthBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        depthBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        depthBarrier.srcAccessMask = vk::AccessFlagBits2::eDepthStencilAttachmentWrite;
+        depthBarrier.srcStageMask = vk::PipelineStageFlagBits2::eEarlyFragmentTests | vk::PipelineStageFlagBits2::eLateFragmentTests;
+        depthBarrier.dstStageMask = vk::PipelineStageFlagBits2::eEarlyFragmentTests | vk::PipelineStageFlagBits2::eLateFragmentTests;;
+        depthBarrier.dstAccessMask = vk::AccessFlagBits2::eDepthStencilAttachmentWrite;
+
         transitionLayout(cBuffer, barrier);
+        transitionLayout(cBuffer, depthBarrier);
         cBuffer.beginRendering(rInfo);
 
         vk::Viewport viewport{};
