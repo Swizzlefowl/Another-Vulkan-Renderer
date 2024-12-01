@@ -6,7 +6,6 @@ namespace avr {
         ctx.initVulkanCtx();
         pEngine.createSwapchain();
         pEngine.createSwapchainImageViews();
-        createGlobalSet();
         createSampler();
         preparePipeline(graphicsPipe);
         createSyncObjects();
@@ -19,7 +18,6 @@ namespace avr {
         ctx.initVulkanCtx();
         pEngine.createSwapchain();
         pEngine.createSwapchainImageViews();
-        createGlobalSet();
         createSampler();
         preparePipeline(graphicsPipe);
         createSyncObjects();
@@ -31,55 +29,6 @@ namespace avr {
     }
 
     Renderer::~Renderer() {
-    }
-
-    void Renderer::createGlobalSet(){
-        vk::DescriptorPoolCreateInfo poolInfo{};
-        poolInfo.maxSets = 2;
-
-        std::array<vk::DescriptorPoolSize, 2> poolSizes{};
-        poolSizes[0].type = vk::DescriptorType::eSampledImage;
-        poolSizes[0].descriptorCount = 10;
-        poolSizes[1].type = vk::DescriptorType::eSampler;
-        poolSizes[1].descriptorCount = 5;
-        poolInfo.poolSizeCount = poolSizes.size();
-        poolInfo.pPoolSizes = poolSizes.data();
-        ctx.descPool =  ctx.device.createDescriptorPool(poolInfo);
-        
-        std::array<vk::DescriptorSetLayoutBinding, 2> bindings{};
-        vk::DescriptorSetLayoutCreateInfo createInfo{};
-
-
-        bindings[0].binding = 0;
-        bindings[0].descriptorCount = 1;
-        bindings[0].descriptorType = vk::DescriptorType::eSampledImage;
-        bindings[0].stageFlags = vk::ShaderStageFlagBits::eFragment;
-        bindings[0].pImmutableSamplers = nullptr;
-
-        bindings[1].binding = 1;
-        bindings[1].descriptorCount = 1;
-        bindings[1].descriptorType = vk::DescriptorType::eSampler;
-        bindings[1].stageFlags = vk::ShaderStageFlagBits::eFragment;
-        bindings[1].pImmutableSamplers = nullptr;
-
-        createInfo.bindingCount = bindings.size();
-        createInfo.pBindings = bindings.data();
-
-        ctx.setLayout = ctx.device.createDescriptorSetLayout(createInfo);
-
-        vk::DescriptorSetAllocateInfo allocateInfo{};
-        allocateInfo.descriptorSetCount = 1;
-        allocateInfo.descriptorPool = ctx.descPool;
-        allocateInfo.pSetLayouts = &ctx.setLayout;
-        ctx.set = ctx.device.allocateDescriptorSets(allocateInfo)[0];
-
-        renderDelQueue.enqueue(
-            [&]() {
-                ctx.device.destroyDescriptorPool(ctx.descPool);
-                ctx.device.destroyDescriptorSetLayout(ctx.setLayout);
-                fmt::println("destroyed global set");
-            }
-        );
     }
 
     void Renderer::createSampler(){
@@ -100,21 +49,11 @@ namespace avr {
         samplerInfo.mipLodBias = 0.0f;
         samplerInfo.minLod = 0.0f;
         samplerInfo.maxLod = 0.0f;
-        sampler = ctx.device.createSampler(samplerInfo);
+        sampler.sample = ctx.device.createSampler(samplerInfo);
 
-        vk::DescriptorImageInfo imageInfo{};
-        imageInfo.sampler = sampler;
-        vk::WriteDescriptorSet writeInfo{};
-        writeInfo.dstSet = ctx.set;
-        writeInfo.dstBinding = 1;
-        writeInfo.dstArrayElement = 0;
-        writeInfo.descriptorCount = 1;
-        writeInfo.descriptorType = vk::DescriptorType::eSampler;
-        writeInfo.pImageInfo = &imageInfo;
-        ctx.device.updateDescriptorSets(writeInfo, nullptr);
-
+        sampler.index = ctx.descManager.write(vk::DescriptorType::eSampler, sampler.sample);
         renderDelQueue.enqueue([&]() {
-            ctx.device.destroySampler(sampler);
+            ctx.device.destroySampler(sampler.sample);
             fmt::println("destroyed sampler");
             });
     }
@@ -126,11 +65,11 @@ namespace avr {
         shaders.vertShader = avr::createShader(ctx, "vertex.spv");
         shaders.fragShader = avr::createShader(ctx, "frag.spv");
         vk::PushConstantRange ranges{};
-        ranges.stageFlags = vk::ShaderStageFlagBits::eVertex;
+        ranges.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
         ranges.size = 128;
         vk::PipelineLayoutCreateInfo pipelineLayoutInfo{};
         pipelineLayoutInfo.setLayoutCount = 1;
-        pipelineLayoutInfo.pSetLayouts = &ctx.setLayout;
+        pipelineLayoutInfo.pSetLayouts = &ctx.descManager.setLayout;
         pipelineLayoutInfo.pushConstantRangeCount = 1;
         pipelineLayoutInfo.pPushConstantRanges = &ranges;
 
@@ -208,6 +147,7 @@ namespace avr {
             ctx.device.destroyImageView(mesh.texture.view);
             fmt::println("destroyed mesh");
             });
+        
     }
 
     void Renderer::recordCB(vk::CommandBuffer& cBuffer, uint32_t imageIndex){
@@ -289,16 +229,18 @@ namespace avr {
         struct Push {
             vk::DeviceAddress address{};
             glm::mat4 mvp{};
+            u32 index{};
         } ps;
         auto model = glm::mat4(1.0f);
-        glm::mat4 view = glm::lookAt(glm::vec3(0, -3, 6), glm::vec3(0, 0, -1), glm::vec3(0, 1, 0));
+        glm::mat4 view = glm::lookAt(glm::vec3(-5, 5, 6), glm::vec3(0, 0, 1), glm::vec3(0, 0, 1));
         glm::mat4 proj = glm::perspective(glm::radians(45.0f), pEngine.swapChainExtent.width / (float)pEngine.swapChainExtent.height, 0.1f, 100.0f);
         proj[1][1] *= -1;
         glm::mat4 mvp = proj * view * model;
         ps.mvp = mvp;
         ps.address = mesh.vertexAdress;
-        cBuffer.pushConstants<Push>(pipeLayout, vk::ShaderStageFlagBits::eVertex, 0, ps);
-        cBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeLayout, 0, ctx.set, nullptr);
+        ps.index = mesh.texture.texIndex;
+        cBuffer.pushConstants<Push>(pipeLayout, vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment, 0, ps);
+        cBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeLayout, 0, ctx.descManager.set, nullptr);
         cBuffer.draw(mesh.vertCount, 1, 0, 0);
         cBuffer.endRendering();
         vk::ImageMemoryBarrier2 presentBarrier{};

@@ -7,7 +7,13 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include "context.h"
+
+using u64 = uint64_t;
 namespace avr {
+    struct Sampler {
+        vk::Sampler sample{};
+        u64 index{};
+    };
     enum class pipeLineType {
         Graphics,
         Compute,

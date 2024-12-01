@@ -3,6 +3,7 @@
 #include <fmt/core.h>
 #include "context.h"
 namespace avr {
+    using u64 = std::uint64_t;
     using u32 = std::uint32_t;
     class Image {
     public:
@@ -16,6 +17,7 @@ namespace avr {
         u32 layers{};
         u32 baseMip{};
         u32 baseLayer{};
+        u64 texIndex{};
     };
 
     class imageBuilder {

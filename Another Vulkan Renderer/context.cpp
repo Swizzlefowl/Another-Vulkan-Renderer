@@ -57,6 +57,7 @@ namespace avr {
         createCommandPool();
         createCommandBuffer();
         createAllocator();
+        descManager.initManager();
         return;
     }
 
@@ -232,6 +233,11 @@ namespace avr {
          vk::PhysicalDeviceVulkan13Features feature13{};
          feature12.bufferDeviceAddress = true;
          feature12.descriptorIndexing = true;
+         feature12.descriptorBindingSampledImageUpdateAfterBind = true;
+         feature12.descriptorBindingPartiallyBound = true;
+         feature12.descriptorBindingUpdateUnusedWhilePending = true;
+         feature12.descriptorBindingVariableDescriptorCount = true;
+         feature12.runtimeDescriptorArray = true;
          feature12.scalarBlockLayout = true;
          feature13.synchronization2 = true;
          feature13.dynamicRendering = true;

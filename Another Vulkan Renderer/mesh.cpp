@@ -35,19 +35,7 @@ namespace avr {
             .setViewType(vk::ImageViewType::e2D)
             .createImageView(ctx);
         
-        vk::DescriptorImageInfo imageInfo{};
-        imageInfo.imageView = texture.view;
-        imageInfo.imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
-
-        vk::WriteDescriptorSet writeInfo{};
-        writeInfo.dstSet = ctx.set;
-        writeInfo.dstBinding = 0;
-        writeInfo.dstArrayElement = 0;
-        writeInfo.descriptorCount = 1;
-        writeInfo.descriptorType = vk::DescriptorType::eSampledImage;
-        writeInfo.pImageInfo = &imageInfo;
-
-        ctx.device.updateDescriptorSets(writeInfo, nullptr);
+        texture.texIndex = ctx.descManager.write(vk::ImageLayout::eShaderReadOnlyOptimal, vk::DescriptorType::eSampledImage, texture.view);
     }
 
     void Mesh::loadModel(const std::string& name, std::vector<Vertex>& vertices, std::vector<std::uint32_t>& indices) {

@@ -4,6 +4,7 @@
 #include <vma/vk_mem_alloc.h>
 #include <GLFW/glfw3.h>
 #include "deletionQueue.h"
+#include "DescriptorManager.hpp"
 namespace avr {
     enum class Levels {
         Instance,
@@ -39,9 +40,7 @@ namespace avr {
         vk::Queue queue{};
         vk::CommandPool commandPool{};
         std::vector<vk::CommandBuffer> commandBuffer{};
-        vk::DescriptorPool descPool{};
-        vk::DescriptorSetLayout setLayout{};
-        vk::DescriptorSet set{};
+        DescriptorManager descManager{ *this };
         VmaAllocator allocator{nullptr};
         DeletionQueue deleteQueue{};
         void initVulkanCtx();

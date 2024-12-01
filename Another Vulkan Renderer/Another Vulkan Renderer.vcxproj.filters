@@ -48,6 +48,9 @@
     <ClCompile Include="stbimage.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="DescriptorManager.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="context.h">
@@ -69,6 +72,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="mesh.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="DescriptorManager.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

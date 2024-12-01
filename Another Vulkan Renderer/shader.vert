@@ -16,6 +16,7 @@ layout(scalar, push_constant) uniform constants
 {
 	VertexBuff vertices;
 	mat4x4 mvp;
+	uint index;
 }ps;
 
 layout(location = 0) out vec2 uv;
