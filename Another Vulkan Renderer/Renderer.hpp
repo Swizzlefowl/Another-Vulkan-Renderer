@@ -11,6 +11,8 @@ namespace avr {
         void init(size_t height, size_t width, const std::string& title);
         Renderer();
         ~Renderer();
+        void createGlobalSet();
+        void createSampler();
         void preparePipeline(vk::Pipeline& pipe);
         void createSyncObjects();
         void createVertexBuffer();
@@ -30,6 +32,7 @@ namespace avr {
         std::vector<vk::Semaphore> finishedRenderSem{};
         std::vector<vk::Fence> inFlightFence{2};
         Mesh mesh{ ctx };
+        vk::Sampler sampler{};
         DeletionQueue renderDelQueue{};
     };
 }

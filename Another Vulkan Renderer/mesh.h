@@ -1,6 +1,7 @@
 #pragma once
 #include "context.h"
 #include "engineUtils.h"
+#include "Image.hpp"
 #include <vector>
 namespace avr {
     class Mesh {
@@ -14,7 +15,7 @@ namespace avr {
         VmaAllocation indexAlloc{};
         std::uint32_t vertCount{};
         std::uint32_t indexCount{};
-        vk::Image texture{}; //unused for now
+        avr::Image texture{};
         VmaAllocation texAlloc{};
     private:
         Context& ctx;

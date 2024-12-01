@@ -23,7 +23,21 @@ namespace avr {
         glm::vec3 color{};
         glm::vec2 texCoord{};
     };
+    struct BarrierBuilder {
+        vk::ImageMemoryBarrier2 imageBarrier{};
+        vk::ImageSubresourceRange imageSubResource{};
 
+        BarrierBuilder& setOldLayout(vk::ImageLayout layout);
+        BarrierBuilder& setNewLayout(vk::ImageLayout layout);
+        BarrierBuilder& setAspect(vk::ImageAspectFlags aspect);
+        BarrierBuilder& setImage(vk::Image image);
+        BarrierBuilder& setSubresourceRange(vk::ImageSubresourceRange range);
+        // src refers to src stage and access flags
+        BarrierBuilder& setSrc(vk::PipelineStageFlags2 stageFlags, vk::AccessFlags2 accessFlags);
+        // dst refers to dst stage and access flags
+        BarrierBuilder& setDst(vk::PipelineStageFlags2 stageFlags, vk::AccessFlags2 accessFlags);
+        vk::ImageMemoryBarrier2 createImageBarrier();
+    };
     vk::ImageView createImageView(Context& ctx, vk::Image image, vk::Format format, vk::ImageSubresourceRange range, vk::ImageViewType viewType);
     vk::CommandPool createCommandPool(Context& ctx);
     vk::CommandBuffer createCommandBuffer(Context& ctx, vk::CommandPool& pool);
@@ -36,5 +50,7 @@ namespace avr {
     void transitionLayout(vk::CommandBuffer& cb, const vk::ImageMemoryBarrier2& barrier);
     vk::Buffer createBuffer(Context& ctx, const VmaAllocationCreateInfo& info, vk::BufferUsageFlags usage, vk::DeviceSize size, VmaAllocation& allocation);
     void mapMemory(const Context& ctx, const VmaAllocation& allocation, void* src, VkDeviceSize size);
-
+    vk::CommandBuffer createSingleTimeCB(Context& ctx);
+    void copyBufferToImage(vk::CommandBuffer cb, vk::Buffer buffer, vk::Image image);
+    void execute(Context& ctx, vk::CommandBuffer cb ,std::function<void()>&& fn);
 }

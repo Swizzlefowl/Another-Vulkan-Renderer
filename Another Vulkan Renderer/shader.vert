@@ -15,10 +15,14 @@ layout(scalar, buffer_reference, buffer_reference_align = 8) readonly buffer Ver
 layout(scalar, push_constant) uniform constants
 {
 	VertexBuff vertices;
+	mat4x4 mvp;
 }ps;
 
-layout(location = 0) out vec3 color;
+layout(location = 0) out vec2 uv;
+layout(location = 1) out vec3 fragColor;
+
 void main(){
-	gl_Position = vec4(ps.vertices.attribs[gl_VertexIndex].pos, 1.0);
-	color = vec3(0.0, 1.0, 0.0);
+	gl_Position = ps.mvp * vec4(ps.vertices.attribs[gl_VertexIndex].pos, 1.0);
+	fragColor = vec3(0.0, 1.0, 0.0);
+	uv = ps.vertices.attribs[gl_VertexIndex].texCoord;
 }

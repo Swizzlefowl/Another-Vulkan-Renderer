@@ -13,6 +13,7 @@ namespace avr {
         std::vector<Vertex> vertices{};
         std::vector<std::uint32_t> indices{};
         loadModel(modelName, vertices, indices);
+
         vk::DeviceSize size{ sizeof(vertices[0]) * vertices.size() };
         VmaAllocationCreateInfo info{};
         info.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
@@ -23,6 +24,30 @@ namespace avr {
         vk::BufferDeviceAddressInfo addrInfo{ vertBuffer };
         vertexAdress = ctx.device.getBufferAddress(addrInfo);
         vertCount = vertices.size();
+
+        loadTexture(textureName);
+        ImageViewBuilder builder{};
+        texture.view = builder.setImage(texture.image)
+            .setFormat(texture.format)
+            .setAspect(vk::ImageAspectFlagBits::eColor)
+            .setMips(0, 1)
+            .setArrayLayers(0, 1)
+            .setViewType(vk::ImageViewType::e2D)
+            .createImageView(ctx);
+        
+        vk::DescriptorImageInfo imageInfo{};
+        imageInfo.imageView = texture.view;
+        imageInfo.imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
+
+        vk::WriteDescriptorSet writeInfo{};
+        writeInfo.dstSet = ctx.set;
+        writeInfo.dstBinding = 0;
+        writeInfo.dstArrayElement = 0;
+        writeInfo.descriptorCount = 1;
+        writeInfo.descriptorType = vk::DescriptorType::eSampledImage;
+        writeInfo.pImageInfo = &imageInfo;
+
+        ctx.device.updateDescriptorSets(writeInfo, nullptr);
     }
 
     void Mesh::loadModel(const std::string& name, std::vector<Vertex>& vertices, std::vector<std::uint32_t>& indices) {
@@ -54,6 +79,76 @@ namespace avr {
         }
     }
 
-    void Mesh::loadTexture(const std::string& name){
+    void Mesh::loadTexture(const std::string& name) {
+        int texWidth{};
+        int texHeight{};
+        int texChannels{};
+        stbi_uc* pixels{ nullptr };
+        pixels = stbi_load(name.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
+        vk::DeviceSize imageSize{ static_cast<vk::DeviceSize>(texWidth * texHeight * 4) };
+
+        if (!pixels)
+            throw std::runtime_error("failed to load image!");
+        imageBuilder builder{};
+        texture = builder.setWidth(texWidth)
+            .setHeight(texHeight)
+            .setMips(1)
+            .setArrayLayers(1)
+            .setTiling(vk::ImageTiling::eOptimal)
+            .setUsage(vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferDst)
+            .setFormat(vk::Format::eR8G8B8A8Srgb)
+            .createImage(ctx, 0);
+
+        VmaAllocationCreateInfo allocInfo{};
+        allocInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
+        allocInfo.usage = VMA_MEMORY_USAGE_AUTO;
+        VmaAllocation stagingAlloc{};
+        auto stagingBuffer = createBuffer(ctx, allocInfo, vk::BufferUsageFlagBits::eTransferSrc, imageSize, stagingAlloc);
+        mapMemory(ctx, stagingAlloc, pixels, imageSize);
+
+        auto cb = createSingleTimeCB(ctx);
+        execute(ctx, cb, [&]() {
+            vk::BufferImageCopy region{};
+            region.bufferOffset = 0;
+            region.bufferRowLength = 0;
+            region.bufferImageHeight = 0;
+
+            region.imageSubresource.aspectMask = vk::ImageAspectFlagBits::eColor;
+            region.imageSubresource.mipLevel = texture.baseMip;
+            region.imageSubresource.baseArrayLayer = texture.baseLayer;
+            region.imageSubresource.layerCount = texture.layers;
+
+            region.imageOffset = vk::Offset3D{ 0, 0, 0 };
+            region.imageExtent = vk::Extent3D{
+                texture.width,
+                texture.height,
+                1 };
+
+            BarrierBuilder builder{};
+            auto barrier = builder.setImage(texture.image)
+                .setOldLayout(vk::ImageLayout::eUndefined)
+                .setNewLayout(vk::ImageLayout::eTransferDstOptimal)
+                .setSubresourceRange(vk::ImageSubresourceRange{
+                vk::ImageAspectFlagBits::eColor
+                    ,0, 1, 0, 1 })
+                .setSrc(vk::PipelineStageFlagBits2::eNone, vk::AccessFlagBits2::eNone)
+                .setDst(vk::PipelineStageFlagBits2::eTransfer, vk::AccessFlagBits2::eTransferWrite)
+                .createImageBarrier();
+            transitionLayout(cb, barrier);
+            cb.copyBufferToImage(stagingBuffer, texture.image, vk::ImageLayout::eTransferDstOptimal, region);
+
+            auto barrier2 = builder.setImage(texture.image)
+                .setOldLayout(vk::ImageLayout::eTransferDstOptimal)
+                .setNewLayout(vk::ImageLayout::eShaderReadOnlyOptimal)
+                .setSubresourceRange(vk::ImageSubresourceRange{
+                vk::ImageAspectFlagBits::eColor
+                    ,0, 1, 0, 1 })
+                .setSrc(vk::PipelineStageFlagBits2::eTransfer, vk::AccessFlagBits2::eTransferWrite)
+                .setDst(vk::PipelineStageFlagBits2::eFragmentShader, vk::AccessFlagBits2::eShaderRead)
+                .createImageBarrier();
+            transitionLayout(cb, barrier2);
+            });
+        vmaDestroyBuffer(ctx.allocator, stagingBuffer, stagingAlloc);
+        stbi_image_free(pixels);
     }
 }

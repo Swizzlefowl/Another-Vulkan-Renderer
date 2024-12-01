@@ -151,6 +151,7 @@
     <ClCompile Include="mesh.cpp" />
     <ClCompile Include="presentEngine.cpp" />
     <ClCompile Include="Renderer.cpp" />
+    <ClCompile Include="stbimage.cpp" />
     <ClCompile Include="vkAllocator.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -165,6 +166,7 @@
   <ItemGroup>
     <None Include="..\..\..\Users\Arbaz\source\repos\VulkanRAII\fragment.spv" />
     <None Include="..\..\..\Users\Arbaz\source\repos\VulkanRAII\vertex.spv" />
+    <None Include="shader.frag" />
     <None Include="shader.vert" />
     <None Include="shader_compiler.bat" />
   </ItemGroup>

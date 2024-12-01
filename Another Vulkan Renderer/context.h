@@ -39,6 +39,9 @@ namespace avr {
         vk::Queue queue{};
         vk::CommandPool commandPool{};
         std::vector<vk::CommandBuffer> commandBuffer{};
+        vk::DescriptorPool descPool{};
+        vk::DescriptorSetLayout setLayout{};
+        vk::DescriptorSet set{};
         VmaAllocator allocator{nullptr};
         DeletionQueue deleteQueue{};
         void initVulkanCtx();

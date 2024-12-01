@@ -239,4 +239,66 @@ namespace avr {
             throw std::runtime_error("vma flush failed");
         vmaUnmapMemory(ctx.allocator, allocation);
     }
+
+    vk::CommandBuffer createSingleTimeCB(Context& ctx){
+        auto cb = createCommandBuffer(ctx, ctx.commandPool);
+        vk::CommandBufferBeginInfo beginInfo{};
+        cb.begin(beginInfo);
+        return cb;
+    }
+
+    void copyBufferToImage(vk::CommandBuffer cb, vk::Buffer buffer, vk::Image image){
+        
+    }
+    void execute(Context& ctx, vk::CommandBuffer cb, std::function<void()>&& fn){
+        fn();
+        cb.end();
+        vk::SubmitInfo submitInfo{};
+        submitInfo.commandBufferCount = 1;
+        submitInfo.pCommandBuffers = &cb;
+        ctx.queue.submit(submitInfo);
+        ctx.queue.waitIdle();
+    }
+
+    BarrierBuilder& BarrierBuilder::setOldLayout(vk::ImageLayout layout){
+        imageBarrier.oldLayout = layout;
+        return *this;
+    }
+
+    BarrierBuilder& BarrierBuilder::setNewLayout(vk::ImageLayout layout){
+        imageBarrier.newLayout = layout;
+        return *this;
+    }
+
+    BarrierBuilder& BarrierBuilder::setAspect(vk::ImageAspectFlags aspect){
+        imageBarrier.subresourceRange.aspectMask = aspect;
+        return *this;
+    }
+
+    BarrierBuilder& BarrierBuilder::setImage(vk::Image image){
+        imageBarrier.image = image;
+        return *this;
+    }
+
+    BarrierBuilder& BarrierBuilder::setSubresourceRange(vk::ImageSubresourceRange range){
+        imageBarrier.subresourceRange = range;
+        return *this;
+    }
+    BarrierBuilder& BarrierBuilder::setSrc(vk::PipelineStageFlags2 stageFlags, vk::AccessFlags2 accessFlags){
+        imageBarrier.srcStageMask = stageFlags;
+        imageBarrier.srcAccessMask = accessFlags;
+        return *this;
+    }
+
+    BarrierBuilder& BarrierBuilder::setDst(vk::PipelineStageFlags2 stageFlags, vk::AccessFlags2 accessFlags){
+        imageBarrier.dstStageMask = stageFlags;
+        imageBarrier.dstAccessMask = accessFlags;
+        return *this;
+    }
+
+    vk::ImageMemoryBarrier2 BarrierBuilder::createImageBarrier(){
+        imageBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        imageBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        return imageBarrier;
+    }
 }

@@ -45,6 +45,9 @@
     <ClCompile Include="mesh.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="stbimage.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="context.h">
@@ -80,6 +83,9 @@
       <Filter>shaders</Filter>
     </None>
     <None Include="shader_compiler.bat">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="shader.frag">
       <Filter>shaders</Filter>
     </None>
   </ItemGroup>

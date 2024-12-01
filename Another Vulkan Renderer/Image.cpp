@@ -29,7 +29,11 @@ namespace avr {
         }
         return avr::Image{ .image = image, .alloc = allocation, .view = {},
             .format = imageInfo.format, .width = imageInfo.extent.width,
-            .height = imageInfo.extent.height
+            .height = imageInfo.extent.height,
+            .mips = imageInfo.mipLevels,
+            .layers = imageInfo.arrayLayers,
+            .baseMip = {},
+            .baseLayer = {}
         };
     }
 
