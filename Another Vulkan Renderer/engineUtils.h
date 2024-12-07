@@ -7,8 +7,10 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include "context.h"
+#include "Image.hpp"
 
-using u64 = uint64_t;
+using u64 = std::uint64_t;
+using u32 = std::uint32_t;
 namespace avr {
     struct Sampler {
         vk::Sampler sample{};
@@ -29,6 +31,14 @@ namespace avr {
         glm::vec3 color{};
         glm::vec2 texCoord{};
     };
+
+    //todo implement a buffer class to hold all buffer state
+    struct Buffer {
+        vk::Buffer buffer{};
+        VmaAllocation alloc{ nullptr };
+        vk::DeviceAddress address{};
+    };
+
     struct BarrierBuilder {
         vk::ImageMemoryBarrier2 imageBarrier{};
         vk::ImageSubresourceRange imageSubResource{};
@@ -59,4 +69,5 @@ namespace avr {
     vk::CommandBuffer createSingleTimeCB(Context& ctx);
     void copyBufferToImage(vk::CommandBuffer cb, vk::Buffer buffer, vk::Image image);
     void execute(Context& ctx, vk::CommandBuffer cb ,std::function<void()>&& fn);
+    void createTexture(Context& ctx, std::string_view name, avr::Image& image);
 }

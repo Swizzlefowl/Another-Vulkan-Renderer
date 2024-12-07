@@ -11,6 +11,7 @@ namespace avr {
         VmaAllocation alloc{};
         vk::ImageView view{};
         vk::Format format{};
+        vk::ImageAspectFlags aspect{};
         u32 width{};
         u32 height{};
         u32 mips{};

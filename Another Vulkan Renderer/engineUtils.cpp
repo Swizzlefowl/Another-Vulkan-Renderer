@@ -1,5 +1,7 @@
 #include "engineUtils.h"
 #include <fstream>
+#include "stb_image.h"
+
 namespace avr {
     vk::ImageView createImageView(Context& ctx, vk::Image image, vk::Format format, vk::ImageSubresourceRange range, vk::ImageViewType viewType) {
         vk::ImageViewCreateInfo createInfo{};
@@ -258,6 +260,90 @@ namespace avr {
         submitInfo.pCommandBuffers = &cb;
         ctx.queue.submit(submitInfo);
         ctx.queue.waitIdle();
+    }
+
+    void createTexture(Context& ctx, std::string_view name, avr::Image& image){
+        int texWidth{};
+        int texHeight{};
+        int texChannels{};
+        stbi_uc* pixels{ nullptr };
+        pixels = stbi_load(name.data(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
+        vk::DeviceSize imageSize{ static_cast<vk::DeviceSize>(texWidth * texHeight * 4) };
+
+        if (!pixels)
+            throw std::runtime_error("failed to load image!");
+        imageBuilder builder{};
+        image = builder.setWidth(texWidth)
+            .setHeight(texHeight)
+            .setMips(1)
+            .setArrayLayers(1)
+            .setTiling(vk::ImageTiling::eOptimal)
+            .setUsage(vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferDst)
+            .setFormat(vk::Format::eR8G8B8A8Srgb)
+            .createImage(ctx, 0);
+
+        VmaAllocationCreateInfo allocInfo{};
+        allocInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
+        allocInfo.usage = VMA_MEMORY_USAGE_AUTO;
+        VmaAllocation stagingAlloc{};
+        auto stagingBuffer = createBuffer(ctx, allocInfo, vk::BufferUsageFlagBits::eTransferSrc, imageSize, stagingAlloc);
+        mapMemory(ctx, stagingAlloc, pixels, imageSize);
+
+        auto cb = createSingleTimeCB(ctx);
+        execute(ctx, cb, [&]() {
+            vk::BufferImageCopy region{};
+            region.bufferOffset = 0;
+            region.bufferRowLength = 0;
+            region.bufferImageHeight = 0;
+
+            region.imageSubresource.aspectMask = vk::ImageAspectFlagBits::eColor;
+            region.imageSubresource.mipLevel = image.baseMip;
+            region.imageSubresource.baseArrayLayer = image.baseLayer;
+            region.imageSubresource.layerCount = image.layers;
+
+            region.imageOffset = vk::Offset3D{ 0, 0, 0 };
+            region.imageExtent = vk::Extent3D{
+                image.width,
+                image.height,
+                1 };
+
+            BarrierBuilder builder{};
+            auto barrier = builder.setImage(image.image)
+                .setOldLayout(vk::ImageLayout::eUndefined)
+                .setNewLayout(vk::ImageLayout::eTransferDstOptimal)
+                .setSubresourceRange(vk::ImageSubresourceRange{
+                vk::ImageAspectFlagBits::eColor
+                    ,0, 1, 0, 1 })
+                .setSrc(vk::PipelineStageFlagBits2::eNone, vk::AccessFlagBits2::eNone)
+                .setDst(vk::PipelineStageFlagBits2::eTransfer, vk::AccessFlagBits2::eTransferWrite)
+                .createImageBarrier();
+            transitionLayout(cb, barrier);
+            cb.copyBufferToImage(stagingBuffer, image.image, vk::ImageLayout::eTransferDstOptimal, region);
+
+            auto barrier2 = builder.setImage(image.image)
+                .setOldLayout(vk::ImageLayout::eTransferDstOptimal)
+                .setNewLayout(vk::ImageLayout::eShaderReadOnlyOptimal)
+                .setSubresourceRange(vk::ImageSubresourceRange{
+                vk::ImageAspectFlagBits::eColor
+                    ,0, 1, 0, 1 })
+                .setSrc(vk::PipelineStageFlagBits2::eTransfer, vk::AccessFlagBits2::eTransferWrite)
+                .setDst(vk::PipelineStageFlagBits2::eFragmentShader, vk::AccessFlagBits2::eShaderRead)
+                .createImageBarrier();
+            transitionLayout(cb, barrier2);
+            });
+
+        ImageViewBuilder viewBuilder{};
+        image.view = viewBuilder.setImage(image.image)
+            .setFormat(image.format)
+            .setAspect(vk::ImageAspectFlagBits::eColor)
+            .setMips(0, 1)
+            .setArrayLayers(0, 1)
+            .setViewType(vk::ImageViewType::e2D)
+            .createImageView(ctx);
+
+        image.texIndex = ctx.descManager.write(vk::ImageLayout::eShaderReadOnlyOptimal ,vk::DescriptorType::eSampledImage, image.view);
+        vmaDestroyBuffer(ctx.allocator, stagingBuffer, stagingAlloc);
+        stbi_image_free(pixels);
     }
 
     BarrierBuilder& BarrierBuilder::setOldLayout(vk::ImageLayout layout){

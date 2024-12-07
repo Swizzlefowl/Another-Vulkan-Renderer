@@ -4,9 +4,13 @@
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
+#include <libavcodec/avcodec.h>
+#include <libavformat/avformat.h>
+#include <libswscale/swscale.h>
+
 namespace avr {
     Mesh::Mesh(Context& otherCtx) : ctx{ otherCtx } {
-
+        
     }
 
     void Mesh::createMesh(const std::string& modelName, const std::string& textureName) {

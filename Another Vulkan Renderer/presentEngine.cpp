@@ -25,7 +25,7 @@ void avr::PresentEngine::createSwapchain(){
     createInfo.imageColorSpace = surfaceFormat.colorSpace;
     createInfo.imageExtent = extent;
     createInfo.imageArrayLayers = 1;
-    createInfo.imageUsage = vk::ImageUsageFlagBits::eColorAttachment;
+    createInfo.imageUsage = vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eTransferDst;
 
     auto queueFamilyIndex = ctx.getQueueIndex(ctx.physicalDevice, QueueTypes::Graphics);
     createInfo.imageSharingMode = vk::SharingMode::eExclusive;

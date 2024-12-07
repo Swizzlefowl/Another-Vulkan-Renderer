@@ -1,5 +1,6 @@
 #include "Renderer.hpp"
-
+#include <chrono>
+#include <thread>
 namespace avr {
     void Renderer::init() {
         ctx.createWindow(720, 640, "default name");
@@ -11,6 +12,8 @@ namespace avr {
         createSyncObjects();
         createDepthBuffer();
         registerMeshes();
+        createVertexBuffer();
+        createDisplayImage();
     }
 
     void Renderer::init(size_t height, size_t width, const std::string& title) {
@@ -23,12 +26,15 @@ namespace avr {
         createSyncObjects();
         createDepthBuffer();
         registerMeshes();
+        createVertexBuffer();
+        createDisplayImage();
     }
 
     Renderer::Renderer() {
     }
 
     Renderer::~Renderer() {
+
     }
 
     void Renderer::createSampler(){
@@ -115,6 +121,23 @@ namespace avr {
     }
 
     void Renderer::createVertexBuffer(){
+        std::uint32_t width{};
+        std::uint32_t height{};
+        auto frameData = player.getFrame(width, height);
+
+        VmaAllocationCreateInfo allocInfo{};
+        allocInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
+        allocInfo.usage = VMA_MEMORY_USAGE_AUTO;
+
+        stagingBuffer = createBuffer(ctx, allocInfo, vk::BufferUsageFlagBits::eTransferSrc, frameData.size(), stagingAlloc);
+
+        vmaMapMemory(ctx.allocator, stagingAlloc, &mappedPtr);
+        renderDelQueue.enqueue([&]() {
+            ctx.device.waitIdle();
+            vmaUnmapMemory(ctx.allocator, stagingAlloc);
+            vmaDestroyBuffer(ctx.allocator, stagingBuffer, stagingAlloc);
+            });
+       
     }
 
     void Renderer::createDepthBuffer(){
@@ -130,6 +153,7 @@ namespace avr {
             .setAspect(vk::ImageAspectFlagBits::eDepth)
             .setFormat(depthImage.format)
             .createImageView(ctx);
+        depthImage.aspect = vk::ImageAspectFlagBits::eDepth;
 
         fmt::println("created depth image");
         renderDelQueue.enqueue([&]() {
@@ -141,13 +165,144 @@ namespace avr {
 
     void Renderer::registerMeshes(){
         mesh.createMesh("viking_room.obj", "viking_room.png");
+        createTexture(ctx, "LGOsa.jpg", loc);
         renderDelQueue.enqueue([&]() {
             vmaDestroyBuffer(ctx.allocator, mesh.vertBuffer, mesh.vertAlloc);
             vmaDestroyImage(ctx.allocator, mesh.texture.image, mesh.texture.alloc);
             ctx.device.destroyImageView(mesh.texture.view);
             fmt::println("destroyed mesh");
+
+            vmaDestroyImage(ctx.allocator, loc.image, loc.alloc);
+            ctx.device.destroyImageView(loc.view);
+            fmt::println("destroyed loc image");
             });
         
+    }
+
+    void Renderer::createDisplayImage(){
+
+        imageBuilder builder{};
+        ImageViewBuilder viewBuilder{};
+        disImage = builder.setWidth(player.pCodecContext->width)
+            .setHeight(player.pCodecContext->height)
+            .setUsage( 
+                vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst)
+            .setFormat(vk::Format::eR8G8B8A8Srgb)
+            .createImage(ctx, 0);
+
+        /*disImage.view = viewBuilder.setImage(disImage.image)
+            .setAspect(vk::ImageAspectFlagBits::eColor)
+            .setFormat(disImage.format)
+            .createImageView(ctx);
+        disImage.aspect = vk::ImageAspectFlagBits::eColor;*/
+
+        fmt::println("created display image");
+        renderDelQueue.enqueue([&]() {
+            vmaDestroyImage(ctx.allocator, disImage.image, disImage.alloc);
+            //ctx.device.destroyImageView(disImage.view);
+            fmt::println("destroyed display image");
+            });
+    }
+
+    void Renderer::displayVideo(vk::CommandBuffer& cBuffer, uint32_t imageIndex){
+        std::uint32_t width{};
+        std::uint32_t height{};
+        auto frameData = player.getFrame(width, height);
+
+        std::memcpy(mappedPtr, frameData.data(), frameData.size());
+
+        vk::CommandBufferBeginInfo beginInfo{};
+        cBuffer.begin(beginInfo);
+
+        vk::BufferImageCopy copyInfo{};
+        copyInfo.bufferOffset = 0;
+        copyInfo.bufferRowLength = 0;
+        copyInfo.bufferImageHeight = 0;
+        
+        copyInfo.imageSubresource.aspectMask = vk::ImageAspectFlagBits::eColor;
+        copyInfo.imageSubresource.mipLevel = disImage.baseMip;
+        copyInfo.imageSubresource.baseArrayLayer = disImage.baseLayer;
+        copyInfo.imageSubresource.layerCount = disImage.layers;
+        
+        copyInfo.imageOffset = vk::Offset3D{ 0, 0, 0 };
+        copyInfo.imageExtent = vk::Extent3D{
+            disImage.width,
+            disImage.height,
+            1 };
+
+        BarrierBuilder builder{};
+        auto barrier = builder.setImage(disImage.image)
+            .setOldLayout(vk::ImageLayout::eUndefined)
+            .setNewLayout(vk::ImageLayout::eTransferDstOptimal)
+            .setSubresourceRange(vk::ImageSubresourceRange{
+            vk::ImageAspectFlagBits::eColor
+                ,0, 1, 0, 1 })
+            .setSrc(vk::PipelineStageFlagBits2::eTransfer, vk::AccessFlagBits2::eTransferWrite)
+            .setDst(vk::PipelineStageFlagBits2::eTransfer, vk::AccessFlagBits2::eTransferWrite)
+            .createImageBarrier();
+        transitionLayout(cBuffer, barrier);
+        cBuffer.copyBufferToImage(stagingBuffer, disImage.image, vk::ImageLayout::eTransferDstOptimal, copyInfo);
+
+        auto barrier2 = builder.setImage(disImage.image)
+            .setOldLayout(vk::ImageLayout::eTransferDstOptimal)
+            .setNewLayout(vk::ImageLayout::eTransferSrcOptimal)
+            .setSubresourceRange(vk::ImageSubresourceRange{
+            vk::ImageAspectFlagBits::eColor
+                ,0, 1, 0, 1 })
+            .setSrc(vk::PipelineStageFlagBits2::eTransfer, vk::AccessFlagBits2::eTransferWrite)
+            .setDst(vk::PipelineStageFlagBits2::eTransfer, vk::AccessFlagBits2::eTransferRead)
+            .createImageBarrier();
+        transitionLayout(cBuffer, barrier2);
+
+        auto swapchainBarrier = builder.setImage(pEngine.swapchainImages[imageIndex])
+            .setOldLayout(vk::ImageLayout::eUndefined)
+            .setNewLayout(vk::ImageLayout::eTransferDstOptimal)
+            .setSubresourceRange(vk::ImageSubresourceRange{
+            vk::ImageAspectFlagBits::eColor
+                ,0, 1, 0, 1 })
+            .setSrc(vk::PipelineStageFlagBits2::eTransfer, vk::AccessFlagBits2::eTransferWrite)
+            .setDst(vk::PipelineStageFlagBits2::eTransfer, vk::AccessFlagBits2::eTransferWrite)
+            .createImageBarrier();
+        transitionLayout(cBuffer, swapchainBarrier);
+
+        vk::ImageBlit region{};
+        vk::ImageSubresourceLayers layers{};
+        region.srcSubresource.aspectMask = vk::ImageAspectFlagBits::eColor;
+        region.srcSubresource.mipLevel = 0;
+        region.srcSubresource.baseArrayLayer = 0;
+        region.srcSubresource.layerCount = 1;
+        // region.src/dstOffsets just define the range of the images
+        // the blit command will copy ie from 0 to the height/width of
+        // the image
+        region.srcOffsets[0].x = 0;
+        region.srcOffsets[0].y = 0;
+        region.srcOffsets[0].z = 0;
+        region.srcOffsets[1].x = disImage.width;
+        region.srcOffsets[1].y = disImage.height;
+        region.srcOffsets[1].z = 1;
+        region.dstSubresource.aspectMask = vk::ImageAspectFlagBits::eColor;
+        region.dstSubresource.mipLevel = 0;
+        region.dstSubresource.baseArrayLayer = 0;
+        region.dstSubresource.layerCount = 1;
+        region.dstOffsets[0].x = 0;
+        region.dstOffsets[0].y = 0;
+        region.dstOffsets[0].z = 0;
+        region.dstOffsets[1].x = pEngine.swapChainExtent.width;
+        region.dstOffsets[1].y = pEngine.swapChainExtent.height;
+        region.dstOffsets[1].z = 1;
+
+        cBuffer.blitImage(disImage.image, vk::ImageLayout::eTransferSrcOptimal, pEngine.swapchainImages[imageIndex], vk::ImageLayout::eTransferDstOptimal, region, vk::Filter::eLinear);
+        auto presentBarrier = builder.setImage(pEngine.swapchainImages[imageIndex])
+            .setOldLayout(vk::ImageLayout::eTransferDstOptimal)
+            .setNewLayout(vk::ImageLayout::ePresentSrcKHR)
+            .setSubresourceRange(vk::ImageSubresourceRange{
+            vk::ImageAspectFlagBits::eColor
+                ,0, 1, 0, 1 })
+            .setSrc(vk::PipelineStageFlagBits2::eTransfer, vk::AccessFlagBits2::eTransferWrite)
+            .setDst(vk::PipelineStageFlagBits2::eTopOfPipe, vk::AccessFlagBits2::eMemoryWrite)
+            .createImageBarrier();
+        transitionLayout(cBuffer, presentBarrier);
+        cBuffer.end();
     }
 
     void Renderer::recordCB(vk::CommandBuffer& cBuffer, uint32_t imageIndex){
@@ -235,10 +390,11 @@ namespace avr {
         glm::mat4 view = glm::lookAt(glm::vec3(-5, 5, 6), glm::vec3(0, 0, 1), glm::vec3(0, 0, 1));
         glm::mat4 proj = glm::perspective(glm::radians(45.0f), pEngine.swapChainExtent.width / (float)pEngine.swapChainExtent.height, 0.1f, 100.0f);
         proj[1][1] *= -1;
+        model = glm::rotate(model, (float)glm::radians(45 * glfwGetTime()), glm::vec3(0, 0, 1));
         glm::mat4 mvp = proj * view * model;
         ps.mvp = mvp;
         ps.address = mesh.vertexAdress;
-        ps.index = mesh.texture.texIndex;
+        ps.index = loc.texIndex;
         cBuffer.pushConstants<Push>(pipeLayout, vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment, 0, ps);
         cBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeLayout, 0, ctx.descManager.set, nullptr);
         cBuffer.draw(mesh.vertCount, 1, 0, 0);
@@ -273,7 +429,12 @@ namespace avr {
         ctx.device.waitIdle();
     }
     void Renderer::drawFrame(){
+        using namespace std::chrono_literals;
+        //std::this_thread::sleep_for(10ms);
+        static bool firstFrame{ true };
         ctx.device.waitForFences(inFlightFence[frame], VK_FALSE, UINT64_MAX);
+        
+      
         vk::Result result;
         uint32_t imageIndex{};
             std::tie(result, imageIndex) = ctx.device.acquireNextImageKHR(pEngine.swapchain,
@@ -282,14 +443,14 @@ namespace avr {
         ctx.device.resetFences(inFlightFence[frame]);
 
         ctx.commandBuffer[frame].reset();
-        recordCB(ctx.commandBuffer[frame], imageIndex);
-        //recordComputeCB(pResources->commandBuffer[0], imageIndex);
+        //recordCB(ctx.commandBuffer[frame], imageIndex);
+        displayVideo(ctx.commandBuffer[frame], imageIndex);
         vk::SubmitInfo submitInfo{};
         submitInfo.waitSemaphoreCount = 1;
         submitInfo.pWaitSemaphores = &aquireSem[frame];
         submitInfo.commandBufferCount = 1;
         submitInfo.pCommandBuffers = &ctx.commandBuffer[frame];
-        vk::PipelineStageFlags waitStages{ vk::PipelineStageFlagBits::eColorAttachmentOutput };
+        vk::PipelineStageFlags waitStages{ vk::PipelineStageFlagBits::eTransfer };
         submitInfo.pWaitDstStageMask = &waitStages;
         submitInfo.signalSemaphoreCount = 1;
         submitInfo.pSignalSemaphores = &finishedRenderSem[imageIndex];
@@ -303,7 +464,8 @@ namespace avr {
         presentInfo.pSwapchains = &pEngine.swapchain;
         presentInfo.pResults = nullptr;
         result = ctx.queue.presentKHR(presentInfo);
-
-       frame = (frame + 1) % frameInFlight;
+ 
+       //frame = (frame + 1) % frameInFlight;
+        frame = 0;
     }
 }
