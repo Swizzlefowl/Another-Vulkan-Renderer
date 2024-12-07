@@ -35,6 +35,12 @@ VideoPlayer::VideoPlayer(const std::string& name){
 
     pPacket = av_packet_alloc();
     pFrame = av_frame_alloc();
+
+    rgbVideoFrame = av_frame_alloc();
+    rgbVideoFrame->width = pCodecContext->width;
+    rgbVideoFrame->height = pCodecContext->height;
+    rgbVideoFrame->format = AV_PIX_FMT_RGBA;
+    av_frame_get_buffer(rgbVideoFrame, 0);
 }
 
 VideoPlayer::~VideoPlayer(){
@@ -42,9 +48,10 @@ VideoPlayer::~VideoPlayer(){
     avcodec_free_context(&pCodecContext);
     av_packet_free(&pPacket);
     av_frame_free(&pFrame);
+    av_frame_free(&rgbVideoFrame);
 }
 
-std::vector<uint8_t> VideoPlayer::getFrame(std::uint32_t& width, std::uint32_t& height){
+std::span<uint8_t> VideoPlayer::getFrame(std::uint32_t& width, std::uint32_t& height){
     while (true) {
         auto result = av_read_frame(pFormatContext, pPacket);
         if (result != 0)
@@ -71,23 +78,25 @@ std::vector<uint8_t> VideoPlayer::getFrame(std::uint32_t& width, std::uint32_t& 
         NULL,
         NULL
     );
-    AVFrame* rgbVideoFrame = av_frame_alloc();
+    /*AVFrame* rgbVideoFrame = av_frame_alloc();
     rgbVideoFrame->width = pFrame->width;
     rgbVideoFrame->height = pFrame->height;
     rgbVideoFrame->format = AV_PIX_FMT_RGBA;
-    av_frame_get_buffer(rgbVideoFrame, 0);
+    av_frame_get_buffer(rgbVideoFrame, 0);*/
 
     sws_scale(sws_ctx, pFrame->data,
         pFrame->linesize, 0, pCodecContext->height,
         rgbVideoFrame->data, rgbVideoFrame->linesize);
 
     size_t size = rgbVideoFrame->width * rgbVideoFrame->height * 4;
-    std::vector<uint8_t> frameData(size);
-    int index{};
-    for (auto& pixel : frameData) {
-        pixel = rgbVideoFrame->data[0][index];
-        index++;
-    }
-    av_frame_free(&rgbVideoFrame);
+    std::span<uint8_t> frameData(rgbVideoFrame->data[0] ,size);
+
+    //std::vector<uint8_t> frameData(size);
+    //int index{};
+    //for (auto& pixel : frameData) {
+        //pixel = rgbVideoFrame->data[0][index];
+        //index++;
+    //}
+    //av_frame_free(&rgbVideoFrame);
     return frameData;
 }

@@ -37,7 +37,7 @@ namespace avr {
         Image loc{};
         Image disImage{};
         Sampler sampler{};
-        VideoPlayer player{ "movie.mp4" };
+        VideoPlayer player{ "teaser.mp4" };
         vk::Buffer stagingBuffer{ nullptr };
         VmaAllocation stagingAlloc{};
         void* mappedPtr{ nullptr };

@@ -431,10 +431,9 @@ namespace avr {
     void Renderer::drawFrame(){
         using namespace std::chrono_literals;
         //std::this_thread::sleep_for(10ms);
-        static bool firstFrame{ true };
+        
         ctx.device.waitForFences(inFlightFence[frame], VK_FALSE, UINT64_MAX);
         
-      
         vk::Result result;
         uint32_t imageIndex{};
             std::tie(result, imageIndex) = ctx.device.acquireNextImageKHR(pEngine.swapchain,
@@ -463,6 +462,7 @@ namespace avr {
         presentInfo.swapchainCount = 1;
         presentInfo.pSwapchains = &pEngine.swapchain;
         presentInfo.pResults = nullptr;
+        std::this_thread::sleep_for(24ms);
         result = ctx.queue.presentKHR(presentInfo);
  
        //frame = (frame + 1) % frameInFlight;

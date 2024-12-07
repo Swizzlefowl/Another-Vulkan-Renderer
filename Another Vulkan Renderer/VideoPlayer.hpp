@@ -8,19 +8,21 @@ extern "C" {
 }
 #endif
 #include <string>
-#include <vector>
+#include <span>
 class VideoPlayer{
 public:
     VideoPlayer(const std::string& name);
     ~VideoPlayer();
-    std::vector<uint8_t> getFrame(std::uint32_t& width, std::uint32_t& height);
+    std::span<uint8_t> getFrame(std::uint32_t& width, std::uint32_t& height);
     AVCodecContext* pCodecContext{ nullptr };
+    AVFrame* pFrame{ nullptr };
 private:
     AVFormatContext* pFormatContext{ nullptr };
     AVCodecParameters* codecParam{ nullptr };
     const AVCodec* pCodec{ nullptr };
     AVPacket* pPacket{ nullptr };
-    AVFrame* pFrame{ nullptr };
+    AVFrame* rgbVideoFrame{ nullptr };
+    //AVFrame* pFrame{ nullptr };
     const std::string fileName;
 
 };
