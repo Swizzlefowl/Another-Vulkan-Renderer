@@ -37,10 +37,11 @@ namespace avr {
         Image loc{};
         Image disImage{};
         Sampler sampler{};
-        VideoPlayer player{ "teaser.mp4" };
+        VideoPlayer player{ "teaser.mp4", ctx};
         vk::Buffer stagingBuffer{ nullptr };
         VmaAllocation stagingAlloc{};
         void* mappedPtr{ nullptr };
+        std::vector<uint8_t> renderedData{};
         DeletionQueue renderDelQueue{};
     };
 }

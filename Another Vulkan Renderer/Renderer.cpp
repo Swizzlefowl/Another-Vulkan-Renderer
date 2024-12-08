@@ -14,6 +14,7 @@ namespace avr {
         registerMeshes();
         createVertexBuffer();
         createDisplayImage();
+        player.encoder.open("out.mp4", pEngine.swapChainExtent.width, pEngine.swapChainExtent.height);
     }
 
     void Renderer::init(size_t height, size_t width, const std::string& title) {
@@ -28,6 +29,7 @@ namespace avr {
         registerMeshes();
         createVertexBuffer();
         createDisplayImage();
+        player.encoder.open("out.mp4", pEngine.swapChainExtent.width, pEngine.swapChainExtent.height);
     }
 
     Renderer::Renderer() {
@@ -123,14 +125,15 @@ namespace avr {
     void Renderer::createVertexBuffer(){
         std::uint32_t width{};
         std::uint32_t height{};
-        auto frameData = player.getFrame(width, height);
+        //auto frameData = player.getFrame(width, height);
 
+        vk::DeviceSize size = pEngine.swapChainExtent.width * pEngine.swapChainExtent.height * 4;
         VmaAllocationCreateInfo allocInfo{};
         allocInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
         allocInfo.usage = VMA_MEMORY_USAGE_AUTO;
-
-        stagingBuffer = createBuffer(ctx, allocInfo, vk::BufferUsageFlagBits::eTransferSrc, frameData.size(), stagingAlloc);
-
+        renderedData.resize(size);
+        //stagingBuffer = createBuffer(ctx, allocInfo, vk::BufferUsageFlagBits::eTransferSrc, frameData.size(), stagingAlloc);
+        stagingBuffer = createBuffer(ctx, allocInfo, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eTransferSrc, size, stagingAlloc);
         vmaMapMemory(ctx.allocator, stagingAlloc, &mappedPtr);
         renderDelQueue.enqueue([&]() {
             ctx.device.waitIdle();
@@ -399,8 +402,36 @@ namespace avr {
         cBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeLayout, 0, ctx.descManager.set, nullptr);
         cBuffer.draw(mesh.vertCount, 1, 0, 0);
         cBuffer.endRendering();
+
+        vk::BufferImageCopy bufferCopy{};
+        bufferCopy.bufferRowLength = 0;
+        bufferCopy.bufferOffset = 0;
+        bufferCopy.bufferImageHeight = 0;
+        bufferCopy.imageSubresource.aspectMask = vk::ImageAspectFlagBits::eColor;
+        bufferCopy.imageSubresource.mipLevel = 0;
+        bufferCopy.imageSubresource.baseArrayLayer = 0;
+        bufferCopy.imageSubresource.layerCount = 1;
+        bufferCopy.imageOffset = vk::Offset3D{ 0, 0, 0 };
+        bufferCopy.imageExtent = vk::Extent3D{
+            static_cast<uint32_t>(pEngine.swapChainExtent.width),
+            static_cast<uint32_t>(pEngine.swapChainExtent.height),
+            1 };
+
+        BarrierBuilder builder{};
+        auto transferBarrier = builder.setImage(pEngine.swapchainImages[imageIndex])
+            .setOldLayout(vk::ImageLayout::eColorAttachmentOptimal)
+            .setNewLayout(vk::ImageLayout::eTransferSrcOptimal)
+            .setSubresourceRange(vk::ImageSubresourceRange{
+            vk::ImageAspectFlagBits::eColor
+                ,0, 1, 0, 1 })
+            .setSrc(vk::PipelineStageFlagBits2::eColorAttachmentOutput, vk::AccessFlagBits2::eColorAttachmentWrite)
+            .setDst(vk::PipelineStageFlagBits2::eTransfer, vk::AccessFlagBits2::eTransferRead)
+            .createImageBarrier();
+        transitionLayout(cBuffer, transferBarrier);
+
+        cBuffer.copyImageToBuffer(pEngine.swapchainImages[imageIndex], vk::ImageLayout::eTransferSrcOptimal, stagingBuffer, bufferCopy);
         vk::ImageMemoryBarrier2 presentBarrier{};
-        presentBarrier.oldLayout = vk::ImageLayout::eColorAttachmentOptimal;
+        presentBarrier.oldLayout = vk::ImageLayout::eTransferSrcOptimal;
         presentBarrier.newLayout = vk::ImageLayout::ePresentSrcKHR;
         presentBarrier.image = pEngine.swapchainImages[imageIndex];
         vk::ImageSubresourceRange imageSubResource2{ vk::ImageAspectFlagBits::eColor,
@@ -408,8 +439,8 @@ namespace avr {
         presentBarrier.subresourceRange = imageSubResource2;
         presentBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
         presentBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        presentBarrier.srcAccessMask = vk::AccessFlagBits2::eColorAttachmentWrite;
-        presentBarrier.srcStageMask = vk::PipelineStageFlagBits2::eColorAttachmentOutput;
+        presentBarrier.srcAccessMask = vk::AccessFlagBits2::eTransferRead;
+        presentBarrier.srcStageMask = vk::PipelineStageFlagBits2::eTransfer;
         presentBarrier.dstStageMask = vk::PipelineStageFlagBits2::eColorAttachmentOutput;
         presentBarrier.dstAccessMask = vk::AccessFlagBits2::eColorAttachmentRead | vk::AccessFlagBits2::eColorAttachmentWrite;
         transitionLayout(cBuffer, presentBarrier);
@@ -431,9 +462,15 @@ namespace avr {
     void Renderer::drawFrame(){
         using namespace std::chrono_literals;
         //std::this_thread::sleep_for(10ms);
-        
+        static bool first_frame{ true };
         ctx.device.waitForFences(inFlightFence[frame], VK_FALSE, UINT64_MAX);
-        
+        if (first_frame) {
+            first_frame = false;
+        }
+        else {
+            std::memcpy(renderedData.data(), mappedPtr, renderedData.size());
+            player.encoder.writeFrame(renderedData);
+        }
         vk::Result result;
         uint32_t imageIndex{};
             std::tie(result, imageIndex) = ctx.device.acquireNextImageKHR(pEngine.swapchain,
@@ -442,14 +479,14 @@ namespace avr {
         ctx.device.resetFences(inFlightFence[frame]);
 
         ctx.commandBuffer[frame].reset();
-        //recordCB(ctx.commandBuffer[frame], imageIndex);
-        displayVideo(ctx.commandBuffer[frame], imageIndex);
+        recordCB(ctx.commandBuffer[frame], imageIndex);
+        //displayVideo(ctx.commandBuffer[frame], imageIndex);
         vk::SubmitInfo submitInfo{};
         submitInfo.waitSemaphoreCount = 1;
         submitInfo.pWaitSemaphores = &aquireSem[frame];
         submitInfo.commandBufferCount = 1;
         submitInfo.pCommandBuffers = &ctx.commandBuffer[frame];
-        vk::PipelineStageFlags waitStages{ vk::PipelineStageFlagBits::eTransfer };
+        vk::PipelineStageFlags waitStages{ vk::PipelineStageFlagBits::eColorAttachmentOutput };
         submitInfo.pWaitDstStageMask = &waitStages;
         submitInfo.signalSemaphoreCount = 1;
         submitInfo.pSignalSemaphores = &finishedRenderSem[imageIndex];
@@ -462,7 +499,7 @@ namespace avr {
         presentInfo.swapchainCount = 1;
         presentInfo.pSwapchains = &pEngine.swapchain;
         presentInfo.pResults = nullptr;
-        std::this_thread::sleep_for(24ms);
+        //std::this_thread::sleep_for(10ms);
         result = ctx.queue.presentKHR(presentInfo);
  
        //frame = (frame + 1) % frameInFlight;
